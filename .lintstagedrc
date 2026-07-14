@@ -1,0 +1,3 @@
+{
+  "packages/cli/src/**/*.ts": ["pnpm --filter @limenglin/coding exec eslint --fix", "pnpm --filter @limenglin/coding exec prettier --write"]
+}

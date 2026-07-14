@@ -1,0 +1,91 @@
+#!/usr/bin/env node
+/**
+ * Release orchestrator for the CLI + core pair.
+ *
+ * This keeps package.json as a thin command table while the release sequence
+ * stays in one place:
+ *   docs guards -> tests -> pre-release commit -> synchronized bump
+ *   -> version check -> version commit -> tag -> push
+ */
+import { execSync } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const CLI_DIR = path.resolve(__dirname, "..");
+
+const RELEASE_TYPES = new Set([
+  "patch",
+  "minor",
+  "major",
+  "beta",
+  "rc",
+  "promote",
+]);
+
+function fail(message) {
+  console.error(`x ${message}`);
+  process.exit(1);
+}
+
+function run(command, options = {}) {
+  execSync(command, {
+    cwd: options.cwd ?? CLI_DIR,
+    env: process.env,
+    stdio: options.capture ? ["pipe", "pipe", "pipe"] : "inherit",
+    encoding: "utf-8",
+  });
+}
+
+function output(command, options = {}) {
+  return execSync(command, {
+    cwd: options.cwd ?? CLI_DIR,
+    env: process.env,
+    stdio: ["pipe", "pipe", "pipe"],
+    encoding: "utf-8",
+  }).trim();
+}
+
+function hasGitDiff() {
+  try {
+    execSync("git diff-index --quiet HEAD", {
+      cwd: CLI_DIR,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+function pushTarget(type) {
+  return type === "beta" || type === "rc" ? "HEAD" : "main";
+}
+
+function main() {
+  const [type = "patch"] = process.argv.slice(2);
+  if (!RELEASE_TYPES.has(type)) {
+    fail(`usage: release.js <patch|minor|major|beta|rc|promote>`);
+  }
+
+  run("pnpm --filter @limenglin/coding-core test");
+  run("pnpm test");
+
+  // Exclude .coding/ from the pre-release sweep: dirty task/workspace files
+  // (parallel in-progress work, runtime artifacts) must never be swept into
+  // "chore: pre-release updates" (#303). Staging .coding/ only ever goes
+  // through safe_commit.py's precise allowlist, never a blanket `git add -A`.
+  run("git add -A -- ':!.coding'");
+  if (hasGitDiff()) {
+    run("git commit -m 'chore: pre-release updates'");
+  }
+
+  const version = output(`node scripts/bump-versions.js ${type}`);
+  run("node scripts/release-preflight.js check-versions");
+  run("git add package.json ../core/package.json");
+  run(`git commit -m "${version}"`);
+  run(`git tag "v${version}"`);
+  run(`git push origin ${pushTarget(type)} --tags`);
+}
+
+main();
