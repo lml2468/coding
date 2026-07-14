@@ -60,7 +60,7 @@ const program = new Command();
 program
   .name("coding")
   .description(
-    "AI-assisted development workflow framework for Cursor, Claude Code and more",
+    "An out-of-the-box engineering framework for Claude Code",
   )
   .version(VERSION, "-v, --version", "output the version number");
 
@@ -200,7 +200,7 @@ program
 program
   .command("mem")
   .description(
-    "Search/recall AI conversation history across Claude Code, Codex, OpenCode, Pi (run 'coding mem help' for subcommands and flags)",
+    "Search/recall Claude Code conversation history (run 'coding mem help' for subcommands and flags)",
   )
   .allowUnknownOption(true)
   .helpOption(false)

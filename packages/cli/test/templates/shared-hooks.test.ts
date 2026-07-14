@@ -8,7 +8,6 @@ import {
 
 const ALL_HOOK_FILES = [
   "session-start.py",
-  "inject-shell-session-context.py",
   "inject-workflow-state.py",
   "inject-subagent-context.py",
 ] as const;
@@ -56,46 +55,8 @@ describe("shared-hooks capability table", () => {
     }
   });
 
-  it("inject-subagent-context.py is restricted to class-1 push-based platforms", () => {
-    // Class-2 (pull-based) platforms load context via agent-definition prelude,
-    // not a hook-mutated prompt.
-    const class2 = new Set(["codex", "copilot", "gemini", "qoder", "trae"]);
-    for (const [platform, hooks] of Object.entries(
-      SHARED_HOOKS_BY_PLATFORM,
-    )) {
-      const has = hooks.includes("inject-subagent-context.py");
-      if (class2.has(platform))
-        expect(
-          has,
-          `${platform} is class-2 pull-based and must not ship inject-subagent-context.py`,
-        ).toBe(false);
-    }
-  });
-
-  it("codex + copilot do not take the shared session-start.py (they bundle their own)", () => {
-    expect(SHARED_HOOKS_BY_PLATFORM.codex).not.toContain("session-start.py");
-    expect(SHARED_HOOKS_BY_PLATFORM.copilot).not.toContain("session-start.py");
-  });
-
-  it("inject-shell-session-context.py goes to Cursor only", () => {
-    for (const [platform, hooks] of Object.entries(
-      SHARED_HOOKS_BY_PLATFORM,
-    )) {
-      const has = hooks.includes("inject-shell-session-context.py");
-      if (platform === "cursor") expect(has).toBe(true);
-      else
-        expect(
-          has,
-          `${platform} declares inject-shell-session-context.py but does not use Cursor beforeShellExecution`,
-        ).toBe(false);
-    }
-  });
-
-  it("kiro registers session-start, workflow-state, and subagent-context hooks", () => {
-    // Kiro wires per-turn + spawn hooks on both surfaces (CLI agent
-    // userPromptSubmit/agentSpawn + IDE .kiro.hook promptSubmit), so it ships
-    // the same trio as other agent-capable push-based platforms.
-    expect([...SHARED_HOOKS_BY_PLATFORM.kiro].sort()).toEqual(
+  it("claude registers session-start, workflow-state, and subagent-context hooks", () => {
+    expect([...SHARED_HOOKS_BY_PLATFORM.claude].sort()).toEqual(
       [
         "inject-subagent-context.py",
         "inject-workflow-state.py",

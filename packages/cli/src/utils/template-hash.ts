@@ -324,7 +324,7 @@ export interface InitializeHashesOptions {
    * POSIX-style relative paths coding actually wrote during the init run
    * (captured via `startRecordingWrites` in `file-writer.ts`). Only these
    * paths are hashed for the platform/root-level coverage; anything else
-   * under `.codex/` / `.claude/` / etc. is left alone, even if it exists
+   * under `.claude/` is left alone, even if it exists
    * on disk. Setting this to `undefined` or an empty set means "no
    * platform/root coverage this run" — historical hashes from earlier
    * runs are preserved via `merge`.
@@ -345,7 +345,7 @@ export interface InitializeHashesOptions {
  * The platform/root section of the manifest comes from `trackedPaths` —
  * the set of POSIX paths that `writeFile` actually wrote (or owned with
  * byte-identical content) during this init run. Avoids the historical bug
- * where a blind directory walk of `.codex/` / `.claude/` swept up
+ * where a blind directory walk of `.claude/` swept up
  * user-owned runtime data (chat history, session JSONLs).
  *
  * `.coding/` is still walked recursively (with `EXCLUDE_FROM_HASH`) because

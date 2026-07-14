@@ -33,7 +33,7 @@ export function getWriteMode(): WriteMode {
 // `coding init` uses recording to capture exactly which files were actually
 // written this run (vs skipped because they already existed). The captured
 // set is what `.template-hashes.json` should contain — NOT a blind directory
-// walk of `.codex/` / `.claude/` / etc, which would include user-owned files
+// walk of `.claude/`, which would include user-owned files
 // that pre-dated init. See `pruneOrphanManifestKeys` for the self-heal side
 // of the same contract.
 // ---------------------------------------------------------------------------

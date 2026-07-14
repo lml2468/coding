@@ -202,25 +202,6 @@ describe("uninstall() integration", () => {
     expect(fs.existsSync(userHookDir)).toBe(true);
   });
 
-  it("#8b platform root dir survives only when scrubbing leaves residual structured content", async () => {
-    // Cursor's hooks.json template contains `{ version: 1, hooks: {...} }`.
-    // After coding hooks are stripped, `{ version: 1 }` remains — not fully
-    // empty per the scrubber, so the file (and therefore .cursor/) survive.
-    // This documents the boundary of the cleanup contract.
-    await init({ yes: true, cursor: true, force: true });
-    await uninstall({ yes: true });
-
-    // Sub-directories under .cursor/ that became empty should be gone.
-    for (const sub of ["agents", "commands", "hooks", "skills"]) {
-      expect(fs.existsSync(path.join(tmpDir, ".cursor", sub))).toBe(false);
-    }
-    // hooks.json residual (version: 1) keeps .cursor/ alive.
-    if (fs.existsSync(path.join(tmpDir, ".cursor"))) {
-      const remaining = fs.readdirSync(path.join(tmpDir, ".cursor"));
-      expect(remaining).toEqual(["hooks.json"]);
-    }
-  });
-
   it("#8 .claude/settings.json with extra user fields keeps user fields, strips coding hooks", async () => {
     await init({ yes: true, claude: true, force: true });
 

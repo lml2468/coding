@@ -75,11 +75,3 @@ max_journal_lines: 2000
 
 # Default package used when --package is not specified.
 # default_package: frontend
-
-# Auto-detected monorepo packages
-packages:
-  coding:
-    path: packages/cli
-  coding-core:
-    path: packages/core
-default_package: @limenglin/coding

@@ -1,15 +1,10 @@
 #!/usr/bin/env python3
-"""Coding per-turn breadcrumb hook (UserPromptSubmit / BeforeAgent equivalent).
+"""Coding per-turn breadcrumb hook (Claude Code UserPromptSubmit).
 
 Runs on every user prompt. Resolves the active task through Coding'
 session-aware active task resolver and emits a short <workflow-state>
 block reminding the main AI what task is active and its expected flow.
 
-The emitted ``hookEventName`` field is platform-aware: most hosts expect
-``UserPromptSubmit`` (Claude Code naming, also accepted by Cursor / Qoder /
-CodeBuddy / Droid / Codex / Copilot wiring), but Gemini CLI 0.40.x renamed
-its per-turn event to ``BeforeAgent`` and its schema validator rejects the
-legacy name. ``_detect_platform`` picks the right value at runtime.
 Breadcrumb text is pulled exclusively from workflow.md
 [workflow-state:STATUS] tag blocks — workflow.md is the single source of
 truth. There are no fallback dicts in this script: when workflow.md is
@@ -17,12 +12,8 @@ missing or a tag is absent, the breadcrumb degrades to a generic
 "Refer to workflow.md for current step." line so users see (and fix)
 the broken state instead of the hook silently masking it.
 
-Shared across all hook-capable platforms (Claude, Cursor, Codex, Qoder,
-CodeBuddy, Droid, Gemini, Copilot, Kiro). Kiro wires this via the CLI
-custom agent's ``hooks.userPromptSubmit`` and the IDE ``.kiro.hook``
-``promptSubmit`` event; its output branch emits a plain-text breadcrumb
-(Kiro adds hook stdout directly to the conversation context). Written to
-each platform's hooks directory via writeSharedHooks() at init time.
+Written to Claude Code's hooks directory via writeSharedHooks() at init
+time.
 
 Silent exit 0 cases (no output):
   - No .coding/ directory found (not a Coding project)
@@ -62,14 +53,6 @@ if sys.platform.startswith("win"):
 from typing import Optional
 
 
-# Bootstrap notice for Codex while the session has no active task. Codex does not
-# get the full SessionStart overview; this short reminder points the main session
-# at the start skill once and leaves the per-turn state block compact.
-CODEX_NO_TASK_BOOTSTRAP_NOTICE = """<coding-bootstrap>
-If you have not already loaded Coding context this session, read the `coding-start` skill once.
-</coding-bootstrap>"""
-
-
 # ---------------------------------------------------------------------------
 # CWD-robust Coding root discovery (fixes hook-path-robustness for this hook)
 # ---------------------------------------------------------------------------
@@ -92,52 +75,13 @@ def find_coding_root(start: Path) -> Optional[Path]:
 # Active task discovery
 # ---------------------------------------------------------------------------
 
-def _detect_platform(input_data: dict) -> str | None:
-    if isinstance(input_data.get("cursor_version"), str):
-        return "cursor"
-    env_map = {
-        "CLAUDE_PROJECT_DIR": "claude",
-        "CURSOR_PROJECT_DIR": "cursor",
-        "CODEBUDDY_PROJECT_DIR": "codebuddy",
-        "FACTORY_PROJECT_DIR": "droid",
-        "GEMINI_PROJECT_DIR": "gemini",
-        "QODER_PROJECT_DIR": "qoder",
-        "KIRO_PROJECT_DIR": "kiro",
-        "COPILOT_PROJECT_DIR": "copilot",
-        "TRAE_PROJECT_DIR": "trae",
-    }
-    for env_name, platform in env_map.items():
-        if os.environ.get(env_name):
-            return platform
-    script_parts = set(Path(sys.argv[0]).parts)
-    if ".claude" in script_parts:
-        return "claude"
-    if ".cursor" in script_parts:
-        return "cursor"
-    if ".codex" in script_parts:
-        return "codex"
-    if ".gemini" in script_parts:
-        return "gemini"
-    if ".qoder" in script_parts:
-        return "qoder"
-    if ".codebuddy" in script_parts:
-        return "codebuddy"
-    if ".factory" in script_parts:
-        return "droid"
-    if ".kiro" in script_parts:
-        return "kiro"
-    if ".trae" in script_parts:
-        return "trae"
-    return None
-
-
 def _resolve_active_task(root: Path, input_data: dict):
     scripts_dir = root / ".coding" / "scripts"
     if str(scripts_dir) not in sys.path:
         sys.path.insert(0, str(scripts_dir))
     from common.active_task import resolve_active_task  # type: ignore[import-not-found]
 
-    return resolve_active_task(root, input_data, platform=_detect_platform(input_data))
+    return resolve_active_task(root, input_data, platform="claude")
 
 
 def get_active_task(root: Path, input_data: dict) -> Optional[tuple[str, str, str]]:
@@ -204,87 +148,11 @@ def load_breadcrumbs(root: Path) -> dict[str, str]:
     return result
 
 
-def _read_coding_config(root: Path) -> dict:
-    """Load .coding/config.yaml via the bundled coding_config helper.
-
-    The helper lives in .coding/scripts/common; the hook lives outside the
-    scripts tree, so we extend sys.path before importing.
-    """
-    scripts_dir = root / ".coding" / "scripts"
-    if str(scripts_dir) not in sys.path:
-        sys.path.insert(0, str(scripts_dir))
-    try:
-        from common.coding_config import read_coding_config  # type: ignore[import-not-found]
-    except Exception:
-        return {}
-    try:
-        return read_coding_config(root)
-    except Exception:
-        return {}
-
-
-def _codex_mode_banner(config: dict) -> str:
-    """Emit a `<codex-mode>` banner for the additionalContext payload.
-
-    Reads `codex.dispatch_mode` from .coding/config.yaml; defaults to
-    `inline` when missing or invalid because Codex sub-agents run with
-    `fork_turns="none"` isolation and can't inherit the parent session's
-    task context. The banner makes the active mode explicit to Codex AI
-    per turn, complementing the workflow-state body which is per-status.
-    Mode tells AI which dispatch protocol to follow; workflow-state tells
-    AI what step it's at.
-    """
-    mode = "inline"
-    if isinstance(config, dict):
-        codex_cfg = config.get("codex")
-        if isinstance(codex_cfg, dict):
-            cfg_mode = codex_cfg.get("dispatch_mode")
-            if cfg_mode in ("inline", "sub-agent"):
-                mode = cfg_mode
-    if mode == "sub-agent":
-        meaning = (
-            "sub-agent: implement/check work defaults to Coding sub-agents; "
-            "the main session still coordinates, clarifies, updates specs, commits, and finishes."
-        )
-    else:
-        meaning = (
-            "inline: the main session implements/checks directly; "
-            "do not dispatch implement/check sub-agents."
-        )
-    return f"<codex-mode>{meaning}</codex-mode>"
-
-
-def resolve_breadcrumb_key(
-    status: str, platform: str | None, config: dict
-) -> str:
-    """Pick the breadcrumb tag key based on Codex dispatch_mode.
-
-    Codex defaults to ``inline`` because sub-agents run with ``fork_turns="none"``
-    isolation and can't inherit the parent session's task context. Users can
-    opt into ``codex.dispatch_mode: sub-agent`` in ``.coding/config.yaml``
-    to use the parallel ``<status>-inline`` tag → ``<status>`` flip. Invalid
-    or missing values fall back to inline.
-
-    Non-codex platforms return the plain status unchanged.
-    """
-    if platform == "codex":
-        mode = "inline"
-        if isinstance(config, dict):
-            codex_cfg = config.get("codex")
-            if isinstance(codex_cfg, dict):
-                cfg_mode = codex_cfg.get("dispatch_mode")
-                if cfg_mode in ("inline", "sub-agent"):
-                    mode = cfg_mode
-        return f"{status}-inline" if mode == "inline" else status
-    return status
-
-
 def build_breadcrumb(
     task_id: Optional[str],
     status: str,
     templates: dict[str, str],
     source: str | None = None,
-    breadcrumb_key: str | None = None,
 ) -> str:
     """Build the <workflow-state>...</workflow-state> block.
 
@@ -293,10 +161,7 @@ def build_breadcrumb(
       "Refer to workflow.md for current step." line
     - `no_task` pseudo-status (task_id is None) → header omits task info
     """
-    lookup_key = breadcrumb_key or status
-    body = templates.get(lookup_key)
-    if body is None and lookup_key != status:
-        body = templates.get(status)
+    body = templates.get(status)
     if body is None:
         body = "Refer to workflow.md for current step."
     header = f"Status: {status}" if task_id is None else f"Task: {task_id} ({status})"
@@ -310,11 +175,10 @@ def build_breadcrumb(
 def _load_hook_input() -> dict:
     """Read hook JSON without trusting host runners to close stdin.
 
-    Kiro IDE `runCommand` and similar hook runners can leave stdin open while
-    sending no payload. A plain `json.load(sys.stdin)` then blocks forever.
-    Normal hook runners write the complete JSON payload and close stdin, so the
-    short daemon read preserves that path while failing closed to `{}` for
-    non-piping hosts.
+    Some hook runners can leave stdin open while sending no payload. A plain
+    `json.load(sys.stdin)` then blocks forever. Normal hook runners write the
+    complete JSON payload and close stdin, so the short daemon read preserves
+    that path while failing closed to `{}` for non-piping hosts.
     """
     result_queue: "queue.Queue[str | Exception]" = queue.Queue(maxsize=1)
 
@@ -354,49 +218,18 @@ def main() -> int:
         return 0  # not a Coding project
 
     templates = load_breadcrumbs(root)
-    platform = _detect_platform(data)
-    config = _read_coding_config(root)
     task = get_active_task(root, data)
     if task is None:
         # No active task — still emit a breadcrumb nudging AI toward
         # coding-brainstorm + task.py create when user describes real work.
-        no_task_key = resolve_breadcrumb_key("no_task", platform, config)
-        breadcrumb = build_breadcrumb(
-            None, "no_task", templates, breadcrumb_key=no_task_key
-        )
+        breadcrumb = build_breadcrumb(None, "no_task", templates)
     else:
         task_id, status, source = task
-        status_key = resolve_breadcrumb_key(status, platform, config)
-        source_for_breadcrumb = None if platform == "codex" else source
-        breadcrumb = build_breadcrumb(
-            task_id, status, templates, source_for_breadcrumb, breadcrumb_key=status_key
-        )
-    if platform == "codex":
-        parts: list[str] = []
-        if task is None:
-            parts.append(CODEX_NO_TASK_BOOTSTRAP_NOTICE)
-        parts.append(_codex_mode_banner(config))
-        parts.append(breadcrumb)
-        breadcrumb = "\n\n".join(parts)
-
-    # Kiro (CLI userPromptSubmit / IDE promptSubmit) adds a hook's stdout
-    # directly to the conversation context — no JSON envelope. Emit the bare
-    # breadcrumb text. Conditionally isolated: all other platforms keep the
-    # hookSpecificOutput JSON path below unchanged.
-    if platform == "kiro":
-        print(breadcrumb)
-        return 0
-
-    # Gemini CLI 0.40.x rejects "UserPromptSubmit" — its per-turn event is
-    # named "BeforeAgent". Other platforms (Claude/Cursor/Qoder/CodeBuddy/
-    # Droid/Codex/Copilot) accept the original Claude-style name.
-    hook_event_name = (
-        "BeforeAgent" if platform == "gemini" else "UserPromptSubmit"
-    )
+        breadcrumb = build_breadcrumb(task_id, status, templates, source)
 
     output = {
         "hookSpecificOutput": {
-            "hookEventName": hook_event_name,
+            "hookEventName": "UserPromptSubmit",
             "additionalContext": breadcrumb,
         }
     }

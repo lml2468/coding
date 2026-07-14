@@ -1,10 +1,10 @@
 /**
  * Self-heal poisoned `.template-hashes.json` manifests.
  *
- * Versions before this fix walked `.codex/`, `.claude/`, etc. with a blind
+ * Versions before this fix walked `.claude/` with a blind
  * recursive scan when computing the manifest, so they hashed user-owned
- * runtime data (`.codex/sessions/*`, `.claude/projects/*.jsonl`, pre-existing
- * `AGENTS.md`, user-added `.codex/skills/<custom>/`, …). On uninstall, every
+ * runtime data (`.claude/projects/*.jsonl`, pre-existing
+ * `AGENTS.md`, user-added skills, …). On uninstall, every
  * manifest entry is unlinked, which silently deletes user data.
  *
  * `pruneOrphanManifestKeys` removes any manifest entry that no current

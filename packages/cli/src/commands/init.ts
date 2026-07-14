@@ -471,15 +471,8 @@ usually much faster than documenting from scratch.
 | File / Directory | Tool |
 |------|------|
 | \`CLAUDE.md\` / \`CLAUDE.local.md\` | Claude Code |
-| \`AGENTS.md\` | Codex / Claude Code / agent-compatible tools |
-| \`.cursorrules\` | Cursor |
-| \`.cursor/rules/*.mdc\` | Cursor (rules directory) |
-| \`.windsurfrules\` | Windsurf |
-| \`.clinerules\` | Cline |
-| \`.roomodes\` | Roo Code |
-| \`.github/copilot-instructions.md\` | GitHub Copilot |
-| \`.vscode/settings.json\` → \`github.copilot.chat.codeGeneration.instructions\` | VS Code Copilot |
-| \`CONVENTIONS.md\` / \`.aider.conf.yml\` | aider |
+| \`AGENTS.md\` | Claude Code / agent-compatible tools |
+| \`CONVENTIONS.md\` | Coding conventions |
 | \`CONTRIBUTING.md\` | General project conventions |
 | \`.editorconfig\` | Editor formatting rules |
 
@@ -664,7 +657,7 @@ they engage.
 
 ### 1. What Coding is + the workflow
 
-Coding is a workflow layer over Claude Code / Cursor / etc. that keeps AI
+Coding is a workflow layer over Claude Code that keeps AI
 agents consistent with project-specific conventions instead of writing generic
 code every session.
 
@@ -800,7 +793,7 @@ async function handleReinit(
       console.log(chalk.gray(`Already initialized with: ${configuredNames}`));
       console.log(
         chalk.gray(
-          "Use platform flags (e.g., --codex) or -u <name> to add platforms/developer.",
+          "Use --claude or -u <name> to add the platform/developer.",
         ),
       );
       return true;

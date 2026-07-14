@@ -10,9 +10,6 @@
 import { describe, it, expect } from "vitest";
 import {
   scrubHooksJson,
-  scrubOpencodePackageJson,
-  scrubPiSettings,
-  scrubCodexConfigToml,
   scrubManagedMarkdownBlock,
 } from "../../src/utils/uninstall-scrubbers.js";
 
@@ -26,7 +23,6 @@ const CURSOR_DELETE_PATHS = [
   ".cursor/hooks/inject-subagent-context.py",
   ".cursor/hooks/session-start.py",
   ".cursor/hooks/inject-workflow-state.py",
-  ".cursor/hooks/inject-shell-session-context.py",
 ];
 
 const TEST_BLOCK_START = "<!-- CODING:TEST:START -->";
@@ -307,34 +303,6 @@ describe("scrubHooksJson — flat schema", () => {
   });
 });
 
-describe("scrubOpencodePackageJson", () => {
-  it("removes @opencode-ai/plugin and reports fullyEmpty", () => {
-    const input = { dependencies: { "@opencode-ai/plugin": "1.1.40" } };
-    const { content, fullyEmpty } = scrubOpencodePackageJson(
-      JSON.stringify(input, null, 2),
-    );
-    expect(fullyEmpty).toBe(true);
-    expect(JSON.parse(content)).toEqual({});
-  });
-
-  it("preserves other deps and other top-level fields", () => {
-    const input = {
-      name: "my-project",
-      dependencies: {
-        "@opencode-ai/plugin": "1.1.40",
-        lodash: "^4.0.0",
-      },
-    };
-    const { content, fullyEmpty } = scrubOpencodePackageJson(
-      JSON.stringify(input, null, 2),
-    );
-    const parsed = JSON.parse(content);
-    expect(parsed.name).toBe("my-project");
-    expect(parsed.dependencies).toEqual({ lodash: "^4.0.0" });
-    expect(fullyEmpty).toBe(false);
-  });
-});
-
 describe("scrubManagedMarkdownBlock", () => {
   it("removes the managed block and preserves user markdown", () => {
     const input = `# User Guidance
@@ -392,139 +360,3 @@ Also keep this.
   });
 });
 
-describe("scrubPiSettings", () => {
-  it("strips coding entries and reports fullyEmpty", () => {
-    const input = {
-      enableSkillCommands: true,
-      extensions: ["./extensions/coding/index.ts"],
-      skills: ["./skills"],
-      prompts: ["./prompts"],
-      packages: [
-        {
-          source: "npm:pi-subagents",
-          extensions: [],
-          skills: [],
-          prompts: [],
-          themes: [],
-        },
-      ],
-    };
-    const { content, fullyEmpty } = scrubPiSettings(
-      JSON.stringify(input, null, 2),
-    );
-    expect(fullyEmpty).toBe(true);
-    expect(JSON.parse(content)).toEqual({});
-  });
-
-  it("preserves user-added array entries", () => {
-    const input = {
-      enableSkillCommands: true,
-      extensions: ["./extensions/coding/index.ts", "./extensions/my-ext"],
-      skills: ["./skills", "./other-skills"],
-      prompts: ["./prompts"],
-      packages: [
-        {
-          source: "npm:pi-subagents",
-          extensions: [],
-          skills: [],
-          prompts: [],
-          themes: [],
-        },
-        {
-          source: "npm:user-package",
-          skills: ["./pkg-skills"],
-        },
-      ],
-      otherField: "user-value",
-    };
-    const { content, fullyEmpty } = scrubPiSettings(
-      JSON.stringify(input, null, 2),
-    );
-    const parsed = JSON.parse(content);
-    expect(parsed.enableSkillCommands).toBeUndefined();
-    expect(parsed.extensions).toEqual(["./extensions/my-ext"]);
-    expect(parsed.skills).toEqual(["./other-skills"]);
-    expect(parsed.prompts).toBeUndefined();
-    expect(parsed.packages).toEqual([
-      {
-        source: "npm:user-package",
-        skills: ["./pkg-skills"],
-      },
-    ]);
-    expect(parsed.otherField).toBe("user-value");
-    expect(fullyEmpty).toBe(false);
-  });
-});
-
-describe("scrubCodexConfigToml", () => {
-  const TEMPLATE = `# Project-scoped Codex defaults for Coding workflows.
-# Codex loads this after ~/.codex/config.toml when you work in this project.
-
-# Keep AGENTS.md as the primary project instruction file.
-project_doc_fallback_filenames = ["AGENTS.md"]
-
-# NOTE: Coding's SessionStart + UserPromptSubmit hooks require opt-in.
-# Add the following to your USER-level config at ~/.codex/config.toml
-# (not this project file — features.* must be enabled globally):
-#
-#   [features]
-#   codex_hooks = true
-#
-# Without this flag, hooks.json is ignored and Coding context won't
-# be injected into Codex sessions.
-`;
-
-  it("removes the entire coding-shipped file and reports fullyEmpty", () => {
-    const { content, fullyEmpty } = scrubCodexConfigToml(TEMPLATE);
-    expect(fullyEmpty).toBe(true);
-    expect(content.trim()).toBe("");
-  });
-
-  it("preserves user-added TOML content", () => {
-    const userContent = `${TEMPLATE}
-# My custom config
-[my_section]
-my_key = "value"
-`;
-    const { content, fullyEmpty } = scrubCodexConfigToml(userContent);
-    expect(fullyEmpty).toBe(false);
-    expect(content).toContain("[my_section]");
-    expect(content).toContain('my_key = "value"');
-    expect(content).not.toContain("project_doc_fallback_filenames");
-    expect(content).not.toContain("Coding's SessionStart");
-  });
-
-  it("strips just the assignment line when comments are absent", () => {
-    const minimal = `project_doc_fallback_filenames = ["AGENTS.md"]
-[user_section]
-key = 1
-`;
-    const { content, fullyEmpty } = scrubCodexConfigToml(minimal);
-    expect(fullyEmpty).toBe(false);
-    expect(content).not.toContain("project_doc_fallback_filenames");
-    expect(content).toContain("[user_section]");
-  });
-
-  it("strips the new `hooks = true` marker line (Codex 0.129+) alongside the legacy `codex_hooks` line", () => {
-    const newTemplate = `# Project-scoped Codex defaults for Coding workflows.
-# Codex loads this after ~/.codex/config.toml when you work in this project.
-
-# Keep AGENTS.md as the primary project instruction file.
-project_doc_fallback_filenames = ["AGENTS.md"]
-
-# NOTE: Coding's SessionStart + UserPromptSubmit hooks require opt-in.
-# Add the following to your USER-level config at ~/.codex/config.toml
-# (not this project file — features.* must be enabled globally):
-#
-#   [features]
-#   hooks = true
-#   codex_hooks = true
-#
-# Without this flag, hooks.json is ignored and Coding context won't
-# be injected into Codex sessions.
-`;
-    const { content, fullyEmpty } = scrubCodexConfigToml(newTemplate);
-    expect(fullyEmpty).toBe(true);
-    expect(content.trim()).toBe("");
-  });
-});

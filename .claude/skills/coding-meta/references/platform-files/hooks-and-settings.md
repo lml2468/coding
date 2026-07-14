@@ -10,7 +10,6 @@ decide which scripts Claude Code runs for which events.
 - session-start hook: injects a Coding overview when a new session starts or context resets.
 - workflow-state hook: parses `[workflow-state:STATUS]` blocks from `.coding/workflow.md` and emits the body matching the current task `status` on each user input. Parser-only; the script does not embed fallback content.
 - sub-agent context hook: injects task context when implementation/check/research agents start.
-- shell/session bridge: lets shell commands see the same Coding session identity.
 
 ## Hook Script Types
 
@@ -19,7 +18,6 @@ decide which scripts Claude Code runs for which events.
 | `session-start.py` | Generates session-start context. |
 | `inject-workflow-state.py` | Parses `[workflow-state:STATUS]` blocks in `.coding/workflow.md` and emits the body matching the current task status. Falls back to `Refer to workflow.md for current step.` when no matching block exists. |
 | `inject-subagent-context.py` | Injects PRD, JSONL context, and related spec/research into sub-agents. |
-| `inject-shell-session-context.py` | Lets shell commands inherit Coding session identity. |
 
 ## Local Change Scenarios
 
@@ -28,7 +26,6 @@ decide which scripts Claude Code runs for which events.
 | AI should see more/less context in a new session | `.claude/hooks/session-start.py`. |
 | Per-turn hint policy should change | `[workflow-state:STATUS]` block in `.coding/workflow.md`. The hook parses workflow.md verbatim — no script edit required. |
 | Sub-agent cannot read PRD/spec | `inject-subagent-context` hook or agent prelude. |
-| `task.py current` in shell has no active task | Shell/session bridge hook. |
 | Disable an automatic injection | The corresponding hook registration in `.claude/settings.json`. |
 
 ## Modification Principles

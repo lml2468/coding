@@ -27,12 +27,10 @@ from .packages_context import (
     get_context_packages_text,
     get_context_packages_json,
 )
-from .coding_config import read_coding_config
 from .workflow_phase import (
     filter_platform,
     get_phase_index,
     get_step,
-    resolve_effective_platform,
 )
 
 # Backward-compatible alias — external modules import this name
@@ -90,10 +88,7 @@ def main() -> None:
             else:
                 parser.exit(2, "Phase Index section not found in workflow.md\n")
         if args.platform:
-            effective = resolve_effective_platform(
-                args.platform, read_coding_config()
-            )
-            content = filter_platform(content, effective)
+            content = filter_platform(content, args.platform)
         print(content, end="")
     else:
         if args.json:

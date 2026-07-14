@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Multi-Platform Sub-Agent Context Injection Hook
+Sub-Agent Context Injection Hook (Claude Code)
 
 Injects task-specific context when sub-agents (implement, check, research) are spawned.
 
@@ -18,7 +18,6 @@ Context Source: Coding active task resolver points to task directory
 - prd.md          - Requirements document
 - design.md       - Technical design for complex tasks
 - implement.md    - Execution plan for complex tasks
-- codex-review-output.txt - Code Review results
 """
 from __future__ import annotations
 
@@ -79,40 +78,6 @@ def find_repo_root(start_path: str) -> str | None:
     return None
 
 
-def _detect_platform(input_data: dict) -> str | None:
-    if isinstance(input_data.get("cursor_version"), str):
-        return "cursor"
-    env_map = {
-        "CLAUDE_PROJECT_DIR": "claude",
-        "CURSOR_PROJECT_DIR": "cursor",
-        "CODEBUDDY_PROJECT_DIR": "codebuddy",
-        "FACTORY_PROJECT_DIR": "droid",
-        "GEMINI_PROJECT_DIR": "gemini",
-        "QODER_PROJECT_DIR": "qoder",
-        "KIRO_PROJECT_DIR": "kiro",
-        "COPILOT_PROJECT_DIR": "copilot",
-    }
-    for env_name, platform in env_map.items():
-        if os.environ.get(env_name):
-            return platform
-    script_parts = set(Path(sys.argv[0]).parts)
-    if ".claude" in script_parts:
-        return "claude"
-    if ".cursor" in script_parts:
-        return "cursor"
-    if ".gemini" in script_parts:
-        return "gemini"
-    if ".qoder" in script_parts:
-        return "qoder"
-    if ".codebuddy" in script_parts:
-        return "codebuddy"
-    if ".factory" in script_parts:
-        return "droid"
-    if ".kiro" in script_parts:
-        return "kiro"
-    return None
-
-
 def get_current_task(repo_root: str, input_data: dict) -> str | None:
     """Resolve current task directory through the unified active task resolver."""
     scripts_dir = Path(repo_root) / DIR_WORKFLOW / "scripts"
@@ -126,7 +91,7 @@ def get_current_task(repo_root: str, input_data: dict) -> str | None:
     active = resolve_active_task(
         Path(repo_root),
         input_data,
-        platform=_detect_platform(input_data),
+        platform="claude",
     )
     return active.task_path
 
@@ -574,112 +539,29 @@ def _string_value(value: Any) -> str:
     return ""
 
 
-def _extract_subagent_name(value: Any) -> str:
-    """Extract a sub-agent name from common platform encodings.
-
-    Cursor's native Task args encode custom sub-agents as a protobuf oneof,
-    which can appear in hook JSON as either ``{"custom": {"name": "..."}}``
-    or ``{"type": {"case": "custom", "value": {"name": "..."}}}``.
-    """
-    direct = _string_value(value)
-    if direct:
-        return direct
-
-    if not isinstance(value, dict):
-        return ""
-
-    for key in ("name", "subagent_type_name", "subagentTypeName"):
-        direct = _string_value(value.get(key))
-        if direct:
-            return direct
-
-    custom = value.get("custom")
-    if isinstance(custom, dict):
-        custom_name = _string_value(custom.get("name"))
-        if custom_name:
-            return custom_name
-
-    oneof = value.get("type")
-    if isinstance(oneof, dict):
-        case_name = _string_value(oneof.get("case"))
-        if case_name == "custom":
-            nested_value = oneof.get("value")
-            if isinstance(nested_value, dict):
-                custom_name = _string_value(nested_value.get("name"))
-                if custom_name:
-                    return custom_name
-        if case_name:
-            return case_name
-
-    case_name = _string_value(value.get("case"))
-    if case_name == "custom":
-        nested_value = value.get("value")
-        if isinstance(nested_value, dict):
-            custom_name = _string_value(nested_value.get("name"))
-            if custom_name:
-                return custom_name
-    if case_name:
-        return case_name
-
-    for agent_name in AGENTS_ALL:
-        if agent_name in value:
-            return agent_name
-
-    return ""
-
-
 def _extract_subagent_type(tool_input: dict) -> str:
-    for key in (
-        "subagent_type",
-        "subagentType",
-        "subagent_type_name",
-        "subagentTypeName",
-        "agent_type",
-        "agentType",
-        "name",
-    ):
-        agent_name = _extract_subagent_name(tool_input.get(key))
+    for key in ("subagent_type", "subagentType", "name"):
+        agent_name = _string_value(tool_input.get(key))
         if agent_name:
             return agent_name
     return ""
 
 
 def _parse_hook_input(input_data: dict) -> tuple[str, str, dict]:
-    """Parse hook input across different platform formats.
+    """Parse Claude Code hook input.
 
-    Returns (subagent_type, original_prompt, tool_input).
-    Handles:
-    - Claude Code / Qoder / CodeBuddy / Droid: tool_name=Task|Agent, tool_input.subagent_type
-    - Cursor: tool_name=Task|Subagent, tool_input.subagent_type
-    - Copilot CLI: toolName=task (camelCase key, lowercase value)
-    - Gemini CLI: tool_name IS the agent name (BeforeTool matcher already filtered)
-    - Kiro: agentSpawn hook, agent_name field at top level
+    Returns (subagent_type, original_prompt, tool_input). Claude Code passes
+    ``tool_name=Task`` with ``tool_input.subagent_type`` (plus ``prompt``).
     """
     tool_input = input_data.get("tool_input", {})
 
-    # Standard format: Task/Agent tool with subagent_type
-    tool_name = input_data.get("tool_name", "") or input_data.get("toolName", "")
-    if tool_name.lower() in ("task", "agent", "subagent"):
+    tool_name = input_data.get("tool_name", "")
+    if tool_name.lower() in ("task", "agent"):
         return (
             _extract_subagent_type(tool_input),
             tool_input.get("prompt", ""),
             tool_input,
         )
-
-    # Kiro: agentSpawn hook passes agent_name at top level
-    agent_name = input_data.get("agent_name", "")
-    if agent_name:
-        return agent_name, tool_input.get("prompt", input_data.get("prompt", "")), tool_input
-
-    # Gemini CLI: BeforeTool where tool_name IS the agent name
-    # (matcher already ensured it's one of our agents)
-    if tool_name in AGENTS_ALL:
-        return tool_name, tool_input.get("prompt", ""), tool_input
-
-    # Copilot CLI: toolName field (camelCase), value might be the agent name
-    tool_name_camel = input_data.get("toolName", "")
-    if tool_name_camel in AGENTS_ALL:
-        return tool_name_camel, input_data.get("toolArgs", ""), tool_input
 
     return "", "", tool_input
 
@@ -745,22 +627,14 @@ def main():
     if not context:
         sys.exit(0)
 
-    # Return updated input — use a multi-format output that covers all platforms.
-    # Most platforms ignore unrecognized fields, so we include multiple formats.
-    # The platform picks whichever fields it understands.
+    # Return updated input with the injected prompt (Claude Code PreToolUse).
     updated = {**tool_input, "prompt": new_prompt}
     output = {
-        # Claude Code / Qoder / CodeBuddy / Droid format
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
             "permissionDecision": "allow",
             "updatedInput": updated,
         },
-        # Cursor format
-        "permission": "allow",
-        "updated_input": updated,
-        # Gemini format
-        "updatedInput": updated,
     }
 
     print(json.dumps(output, ensure_ascii=False))

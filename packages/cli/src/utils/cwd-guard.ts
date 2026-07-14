@@ -2,10 +2,10 @@
  * Homedir guard for destructive commands (init, uninstall).
  *
  * Running `coding init` / `coding uninstall` in `$HOME` is catastrophic:
- * platforms like Claude Code, Codex, OpenCode all store global runtime data
- * (`.claude/projects/<sanitized-cwd>/*.jsonl` chat history, `.codex/sessions/`,
- * `.opencode/` caches, etc.) directly in the user's home directory. If
- * coding manages the same `.{platform}/` config dirs and the hash manifest
+ * Claude Code stores global runtime data
+ * (`.claude/projects/<sanitized-cwd>/*.jsonl` chat history) directly in the
+ * user's home directory. If
+ * coding manages the same `.claude/` config dir and the hash manifest
  * picks up runtime data, uninstall would later unlink it.
  *
  * Subdirectories of home (`~/Documents/projects/foo/`) are NOT blocked — only
@@ -50,8 +50,8 @@ export function isCwdHomedir(): boolean {
 export function homedirGuardMessage(commandName: "init" | "uninstall"): string {
   return (
     `✗ Refusing to run \`coding ${commandName}\` in your home directory.\n\n` +
-    `Coding manages platform config dirs like .claude/, .codex/, .opencode/, which\n` +
-    `in your home directory also contain runtime data from those CLIs (chat history,\n` +
+    `Coding manages the .claude/ config dir, which\n` +
+    `in your home directory also contains runtime data from Claude Code (chat history,\n` +
     `session JSONLs, caches). Running here can wipe that data.\n\n` +
     `Run coding from your project directory instead. If you really want to run in\n` +
     `$HOME, set CODING_ALLOW_HOMEDIR=1.`

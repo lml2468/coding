@@ -43,9 +43,6 @@ import {
 } from "../utils/cwd-guard.js";
 import {
   scrubHooksJson,
-  scrubOpencodePackageJson,
-  scrubPiSettings,
-  scrubCodexConfigToml,
   scrubManagedMarkdownBlock,
   type ScrubResult,
 } from "../utils/uninstall-scrubbers.js";
@@ -77,48 +74,11 @@ interface StructuredFileSpec {
 function buildStructuredFileSpecs(): Map<string, StructuredFileSpec> {
   const specs: StructuredFileSpec[] = [
     // Nested hooks.{Event}.[].hooks.[] schema
-    ...(
-      [
-        ".claude/settings.json",
-        ".gemini/settings.json",
-        ".factory/settings.json",
-        ".codebuddy/settings.json",
-        ".qoder/settings.json",
-        ".codex/hooks.json",
-        ".trae/hooks.json",
-      ] as const
-    ).map(
-      (p): StructuredFileSpec => ({
-        posixPath: p,
-        reason: "Strip coding hooks; preserve user fields",
-        scrub: (content, deletedPaths) =>
-          scrubHooksJson(content, deletedPaths, "nested"),
-      }),
-    ),
-    // Flat hooks.{Event}.[] schema
-    ...([".cursor/hooks.json", ".github/copilot/hooks.json"] as const).map(
-      (p): StructuredFileSpec => ({
-        posixPath: p,
-        reason: "Strip coding hooks; preserve user fields",
-        scrub: (content, deletedPaths) =>
-          scrubHooksJson(content, deletedPaths, "flat"),
-      }),
-    ),
     {
-      posixPath: ".opencode/package.json",
-      reason: "Remove @opencode-ai/plugin dep; preserve other deps",
-      scrub: (content) => scrubOpencodePackageJson(content),
-    },
-    {
-      posixPath: ".pi/settings.json",
-      reason:
-        "Strip coding extension/skills/prompts entries; preserve user fields",
-      scrub: (content) => scrubPiSettings(content),
-    },
-    {
-      posixPath: ".codex/config.toml",
-      reason: "Remove coding project_doc_fallback_filenames and notes",
-      scrub: (content) => scrubCodexConfigToml(content),
+      posixPath: ".claude/settings.json",
+      reason: "Strip coding hooks; preserve user fields",
+      scrub: (content, deletedPaths) =>
+        scrubHooksJson(content, deletedPaths, "nested"),
     },
     {
       // AGENTS.md is a mixed-ownership file: Coding owns the

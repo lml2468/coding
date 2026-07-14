@@ -35,7 +35,6 @@ import {
   commonInit,
   taskScript,
   addSessionScript,
-  commonCliAdapter,
   commonTaskUtils,
   commonDeveloper,
   commonConfig,
@@ -481,11 +480,6 @@ describe("regression: task directory paths (0.2.14, 0.2.15, beta.13)", () => {
     for (const agent of agents) {
       expect(agent.content).not.toMatch(/\.coding\/workspace\/[^/]+\/tasks\//);
     }
-  });
-
-  it("[beta.13] cli_adapter.py does not contain hardcoded developer paths", () => {
-    expect(commonCliAdapter).not.toMatch(/workspace\/taosu/);
-    expect(commonCliAdapter).not.toMatch(/workspace\/[a-z]+\/tasks/);
   });
 
   it("[0.2.15] no script templates contain hardcoded 'taosu' in path patterns", () => {
@@ -1894,71 +1888,17 @@ describe("regression: current-task path normalization", () => {
       {
         cwd: tmpDir,
         encoding: "utf-8",
-        env: sessionEnv({ CODEX_SESSION_ID: "native-a" }),
+        env: sessionEnv({ CLAUDE_SESSION_ID: "native-a" }),
       },
     );
 
-    expect(output).toContain("Source: session:codex_native-a");
+    expect(output).toContain("Source: session:claude_native-a");
     const contextPath = path.join(
       tmpDir,
       ".coding",
       ".runtime",
       "sessions",
-      "codex_native-a.json",
-    );
-    const context = JSON.parse(fs.readFileSync(contextPath, "utf-8")) as {
-      current_task: string;
-    };
-    expect(context.current_task).toBe(".coding/tasks/issue-106");
-  });
-
-  it("[session-current-task] task.py start uses Codex Desktop CODEX_THREAD_ID", () => {
-    setupTaskRepo();
-    const taskScriptPath = path.join(tmpDir, ".coding", "scripts", "task.py");
-
-    const output = execSync(
-      `${pythonCmd} ${JSON.stringify(taskScriptPath)} start ${JSON.stringify(".coding/tasks/issue-106")}`,
-      {
-        cwd: tmpDir,
-        encoding: "utf-8",
-        env: sessionEnv({ CODEX_THREAD_ID: "thread-a" }),
-      },
-    );
-
-    expect(output).toContain("Source: session:codex_thread-a");
-    const contextPath = path.join(
-      tmpDir,
-      ".coding",
-      ".runtime",
-      "sessions",
-      "codex_thread-a.json",
-    );
-    const context = JSON.parse(fs.readFileSync(contextPath, "utf-8")) as {
-      current_task: string;
-    };
-    expect(context.current_task).toBe(".coding/tasks/issue-106");
-  });
-
-  it("[session-current-task] task.py start uses OpenCode OPENCODE_RUN_ID", () => {
-    setupTaskRepo();
-    const taskScriptPath = path.join(tmpDir, ".coding", "scripts", "task.py");
-
-    const output = execSync(
-      `${pythonCmd} ${JSON.stringify(taskScriptPath)} start ${JSON.stringify(".coding/tasks/issue-106")}`,
-      {
-        cwd: tmpDir,
-        encoding: "utf-8",
-        env: sessionEnv({ OPENCODE_RUN_ID: "run-a" }),
-      },
-    );
-
-    expect(output).toContain("Source: session:opencode_run-a");
-    const contextPath = path.join(
-      tmpDir,
-      ".coding",
-      ".runtime",
-      "sessions",
-      "opencode_run-a.json",
+      "claude_native-a.json",
     );
     const context = JSON.parse(fs.readFileSync(contextPath, "utf-8")) as {
       current_task: string;
@@ -2263,222 +2203,6 @@ describe("regression: current-task path normalization", () => {
 
     expect(fs.readFileSync(envFile, "utf-8")).toContain(
       "export CODING_CONTEXT_ID=claude_bash-start-a",
-    );
-  });
-
-  it("[session-current-task] Cursor beforeShellExecution bridges conversation_id into task.py shell commands", () => {
-    setupTaskRepo();
-    const shellBridgeScript = getSharedHookScripts().find(
-      (hook) => hook.name === "inject-shell-session-context.py",
-    )?.content;
-    writeProjectFile(
-      path.join(".cursor", "hooks", "inject-shell-session-context.py"),
-      expectTemplateContent(shellBridgeScript, "cursor shell bridge"),
-    );
-
-    const taskScriptPath = path.join(tmpDir, ".coding", "scripts", "task.py");
-    const hookOutput = runPython(
-      path.join(".cursor", "hooks", "inject-shell-session-context.py"),
-      JSON.stringify({
-        cursor_version: "3.1.17",
-        conversation_id: "cursor-shell-a",
-        generation_id: "gen-a",
-        cwd: tmpDir,
-        command: `${pythonCmd} ./.coding/scripts/task.py start .coding/tasks/issue-106 && ${pythonCmd} ./.coding/scripts/task.py current --source`,
-        hook_event_name: "beforeShellExecution",
-      }),
-    );
-    expect(JSON.parse(hookOutput) as { permission?: string }).toMatchObject({
-      permission: "allow",
-    });
-
-    const startOutput = execSync(
-      `${pythonCmd} ${JSON.stringify(taskScriptPath)} start ${JSON.stringify(".coding/tasks/issue-106")}`,
-      {
-        cwd: tmpDir,
-        encoding: "utf-8",
-        env: sessionEnv(),
-      },
-    );
-    expect(startOutput).toContain("Source: session:cursor_cursor-shell-a");
-
-    const currentOutput = execSync(
-      `${pythonCmd} ${JSON.stringify(taskScriptPath)} current --source`,
-      {
-        cwd: tmpDir,
-        encoding: "utf-8",
-        env: sessionEnv(),
-      },
-    );
-    expect(currentOutput).toContain("Current task: .coding/tasks/issue-106");
-    expect(currentOutput).toContain("Source: session:cursor_cursor-shell-a");
-
-    const contextPath = path.join(
-      tmpDir,
-      ".coding",
-      ".runtime",
-      "sessions",
-      "cursor_cursor-shell-a.json",
-    );
-    const context = JSON.parse(fs.readFileSync(contextPath, "utf-8")) as {
-      current_task: string;
-      platform: string;
-    };
-    expect(context.current_task).toBe(".coding/tasks/issue-106");
-    expect(context.platform).toBe("cursor");
-  });
-
-  it("[session-current-task] Cursor preToolUse injects context for custom Task subagents", () => {
-    setupTaskRepo();
-    writeProjectFile(path.join(".git", "HEAD"), "ref: refs/heads/main\n");
-    const injectSubagentContextScript = getSharedHookScripts().find(
-      (hook) => hook.name === "inject-subagent-context.py",
-    )?.content;
-    writeProjectFile(
-      path.join(".cursor", "hooks", "inject-subagent-context.py"),
-      expectTemplateContent(
-        injectSubagentContextScript,
-        "inject-subagent-context hook",
-      ),
-    );
-    writeProjectFile(
-      path.join(".coding", ".runtime", "sessions", "cursor_parent-a.json"),
-      JSON.stringify(
-        {
-          current_task: ".coding/tasks/issue-106",
-          current_run: null,
-          platform: "cursor",
-        },
-        null,
-        2,
-      ),
-    );
-
-    const hookOutput = runPython(
-      path.join(".cursor", "hooks", "inject-subagent-context.py"),
-      JSON.stringify({
-        cursor_version: "3.2.11",
-        hook_event_name: "preToolUse",
-        tool_name: "Subagent",
-        tool_input: {
-          prompt: "Report whether TOKEN_CURSOR_HOOK_TEST is visible.",
-          subagent_type: {
-            custom: {
-              name: "coding-implement",
-            },
-          },
-        },
-        conversation_id: "parent-a",
-        cwd: tmpDir,
-      }),
-    );
-
-    const parsed = JSON.parse(hookOutput) as {
-      permission?: string;
-      updated_input?: { prompt?: string };
-      hookSpecificOutput?: { updatedInput?: { prompt?: string } };
-    };
-    const prompt = parsed.updated_input?.prompt ?? "";
-
-    expect(parsed.permission).toBe("allow");
-    expect(prompt).toContain(
-      "=== .coding/tasks/issue-106/prd.md (Requirements) ===",
-    );
-    expect(prompt).toContain("TOKEN_CURSOR_HOOK_TEST");
-    expect(parsed.hookSpecificOutput?.updatedInput?.prompt).toBe(prompt);
-  });
-
-  it("[session-current-task] Cursor generic subagents do not receive Coding jsonl injection", () => {
-    setupTaskRepo();
-    writeProjectFile(path.join(".git", "HEAD"), "ref: refs/heads/main\n");
-    const injectSubagentContextScript = getSharedHookScripts().find(
-      (hook) => hook.name === "inject-subagent-context.py",
-    )?.content;
-    writeProjectFile(
-      path.join(".cursor", "hooks", "inject-subagent-context.py"),
-      expectTemplateContent(
-        injectSubagentContextScript,
-        "inject-subagent-context hook",
-      ),
-    );
-    writeProjectFile(
-      path.join(".coding", ".runtime", "sessions", "cursor_parent-a.json"),
-      JSON.stringify(
-        {
-          current_task: ".coding/tasks/issue-106",
-          current_run: null,
-          platform: "cursor",
-        },
-        null,
-        2,
-      ),
-    );
-
-    const hookOutput = runPython(
-      path.join(".cursor", "hooks", "inject-subagent-context.py"),
-      JSON.stringify({
-        cursor_version: "3.2.11",
-        hook_event_name: "preToolUse",
-        tool_name: "Subagent",
-        tool_input: {
-          prompt: "Report whether TOKEN_CURSOR_HOOK_TEST is visible.",
-          subagent_type: "generalPurpose",
-        },
-        conversation_id: "parent-a",
-        cwd: tmpDir,
-      }),
-    );
-
-    expect(hookOutput.trim()).toBe("");
-  });
-
-  it("[session-current-task] Cursor hook uses conversation_id when transcript_path is null", () => {
-    setupTaskRepo();
-    writeLegacyCurrentTask(".coding/tasks/issue-106");
-    writeWorkflowStateHook();
-    writeProjectFile(
-      path.join(".coding", "tasks", "cursor-task", "task.json"),
-      JSON.stringify(
-        {
-          id: "cursor-task",
-          title: "Cursor task",
-          status: "in_progress",
-        },
-        null,
-        2,
-      ),
-    );
-    writeProjectFile(
-      path.join(".coding", ".runtime", "sessions", "cursor_cursor-a.json"),
-      JSON.stringify(
-        {
-          current_task: ".coding/tasks/cursor-task",
-          platform: "cursor",
-        },
-        null,
-        2,
-      ),
-    );
-
-    const parsed = JSON.parse(
-      runInjectWorkflowStateWithInput({
-        cwd: tmpDir,
-        cursor_version: "3.1.17",
-        conversation_id: "cursor-a",
-        transcript_path: null,
-      }),
-    ) as {
-      hookSpecificOutput: { additionalContext: string };
-    };
-
-    expect(parsed.hookSpecificOutput.additionalContext).toContain(
-      "Task: cursor-task (in_progress)",
-    );
-    expect(parsed.hookSpecificOutput.additionalContext).not.toContain(
-      "Source:",
-    );
-    expect(parsed.hookSpecificOutput.additionalContext).not.toContain(
-      "issue-106",
     );
   });
 
@@ -2883,31 +2607,6 @@ describe("regression: current-task path normalization", () => {
     );
   });
 
-  it("[#240] Codex workflow-state output starts with codex mode, not generic sub-agent notice", () => {
-    setupTaskRepo();
-    writeProjectFile(
-      path.join(".codex", "hooks", "inject-workflow-state.py"),
-      expectTemplateContent(injectWorkflowStateScript, "inject-workflow-state"),
-    );
-
-    const parsed = JSON.parse(
-      runPython(
-        path.join(".codex", "hooks", "inject-workflow-state.py"),
-        JSON.stringify({ cwd: tmpDir, session_id: "workflow-a" }),
-      ),
-    ) as {
-      hookSpecificOutput: { hookEventName: string; additionalContext: string };
-    };
-
-    const ctx = parsed.hookSpecificOutput.additionalContext;
-    expect(parsed.hookSpecificOutput.hookEventName).toBe("UserPromptSubmit");
-    expect(ctx).not.toContain("<sub-agent-notice>");
-    expect(ctx).toContain("<codex-mode>inline:");
-    expect(ctx.indexOf("</codex-mode>")).toBeLessThan(
-      ctx.indexOf("<workflow-state>"),
-    );
-  });
-
   it("[workflow-state] silent exit 0 when not a Coding project (no .coding/ dir)", () => {
     // No .coding/ at all — hook should silently exit
     writeWorkflowStateHook();
@@ -3076,57 +2775,6 @@ describe("regression: current-task path normalization", () => {
       const lines = content.split("\n");
       expect(lines.length).toBe(1);
       const row = JSON.parse(lines[0]) as Record<string, unknown>;
-      expect(row._example).toBeDefined();
-      expect(row.file).toBeUndefined();
-    }
-  });
-
-  it("[issue-373] task.py create does NOT seed jsonl for Codex inline mode", () => {
-    setupTaskRepo();
-    fs.mkdirSync(path.join(tmpDir, ".codex"), { recursive: true });
-    const taskScriptPath = path.join(tmpDir, ".coding", "scripts", "task.py");
-    execSync(
-      `${pythonCmd} ${JSON.stringify(taskScriptPath)} create "codex inline task" --slug codex-inline-task --assignee test-dev`,
-      { cwd: tmpDir, encoding: "utf-8" },
-    );
-
-    const taskDir = path.join(
-      tmpDir,
-      ".coding",
-      "tasks",
-      fs
-        .readdirSync(path.join(tmpDir, ".coding", "tasks"))
-        .find((d) => d.includes("codex-inline-task")) as string,
-    );
-    expect(fs.existsSync(path.join(taskDir, "implement.jsonl"))).toBe(false);
-    expect(fs.existsSync(path.join(taskDir, "check.jsonl"))).toBe(false);
-  });
-
-  it("[issue-373] task.py create seeds jsonl when Codex explicitly uses sub-agent dispatch", () => {
-    setupTaskRepo();
-    fs.mkdirSync(path.join(tmpDir, ".codex"), { recursive: true });
-    writeProjectFile(
-      path.join(".coding", "config.yaml"),
-      'codex:\n  dispatch_mode: sub-agent  # opt into coding-* sub-agents\n',
-    );
-    const taskScriptPath = path.join(tmpDir, ".coding", "scripts", "task.py");
-    execSync(
-      `${pythonCmd} ${JSON.stringify(taskScriptPath)} create "codex subagent task" --slug codex-subagent-task --assignee test-dev`,
-      { cwd: tmpDir, encoding: "utf-8" },
-    );
-
-    const taskDir = path.join(
-      tmpDir,
-      ".coding",
-      "tasks",
-      fs
-        .readdirSync(path.join(tmpDir, ".coding", "tasks"))
-        .find((d) => d.includes("codex-subagent-task")) as string,
-    );
-    for (const jsonlName of ["implement.jsonl", "check.jsonl"]) {
-      const row = JSON.parse(
-        fs.readFileSync(path.join(taskDir, jsonlName), "utf-8").trim(),
-      ) as Record<string, unknown>;
       expect(row._example).toBeDefined();
       expect(row.file).toBeUndefined();
     }
@@ -3488,36 +3136,7 @@ print(len(entries))
     expect(output).not.toContain("#### 2.1 Implement");
   });
 
-  it("[workflow-v2] --mode phase --platform codex (sub-agent mode) filters out generic before-dev routing", () => {
-    writeCodingScripts();
-    writeProjectFile(path.join(".coding", ".developer"), "name=test\n");
-    writeProjectFile(
-      path.join(".coding", "workflow.md"),
-      templateWorkflowMd(),
-    );
-    // Codex defaults to inline since 0.5.9; opt into sub-agent dispatch
-    // explicitly so the legacy spawn-coding-implement block surfaces.
-    writeConfigYaml("codex:\n  dispatch_mode: sub-agent\n");
-
-    const contextScript = path.join(
-      tmpDir,
-      ".coding",
-      "scripts",
-      "get_context.py",
-    );
-    const output = execSync(
-      `${pythonCmd} ${JSON.stringify(contextScript)} --mode phase --platform codex`,
-      { cwd: tmpDir, encoding: "utf-8" },
-    );
-
-    expect(output).toContain("coding-implement");
-    expect(output).not.toContain(
-      "| About to write code / start implementing | coding-before-dev |",
-    );
-    expect(output).not.toContain("before-dev takes under a minute");
-  });
-
-  it("[pi] --mode phase --platform pi uses sub-agent routing", () => {
+  it("[workflow-v2] --mode phase --platform claude surfaces sub-agent routing", () => {
     writeCodingScripts();
     writeProjectFile(path.join(".coding", ".developer"), "name=test\n");
     writeProjectFile(
@@ -3532,12 +3151,11 @@ print(len(entries))
       "get_context.py",
     );
     const output = execSync(
-      `${pythonCmd} ${JSON.stringify(contextScript)} --mode phase --platform pi`,
+      `${pythonCmd} ${JSON.stringify(contextScript)} --mode phase --platform claude`,
       { cwd: tmpDir, encoding: "utf-8" },
     );
 
     expect(output).toContain("coding-implement");
-    expect(output).toContain("implement.jsonl");
     expect(output).not.toContain(
       "| About to write code / start implementing | coding-before-dev |",
     );
@@ -3722,341 +3340,6 @@ print(len(entries))
     expect(sharedInject).not.toContain("AGENTS_NO_PHASE_UPDATE");
   });
 
-  // ------------------------------------------------------------
-  // [issue-codex-dispatch-mode] config-driven dispatch mode for codex
-  // ------------------------------------------------------------
-
-  function writeCodexInjectHook(): string {
-    const rel = path.join(".codex", "hooks", "inject-workflow-state.py");
-    writeProjectFile(
-      rel,
-      expectTemplateContent(injectWorkflowStateScript, "inject-workflow-state"),
-    );
-    return rel;
-  }
-
-  function writeConfigYaml(content: string): void {
-    writeProjectFile(path.join(".coding", "config.yaml"), content);
-  }
-
-  it("[issue-codex-dispatch-mode] codex breadcrumb defaults to inline dispatch when config absent", () => {
-    setupTaskRepo();
-    writeSessionContext("session_workflow-a", ".coding/tasks/issue-106");
-    const codexHookPath = writeCodexInjectHook();
-    writeProjectFile(
-      path.join(".coding", "workflow.md"),
-      "[workflow-state:in_progress]\n" +
-        "DISPATCH the coding-implement / coding-check sub-agents.\n" +
-        "[/workflow-state:in_progress]\n" +
-        "[workflow-state:in_progress-inline]\n" +
-        "MAIN SESSION edits code via coding-before-dev directly.\n" +
-        "[/workflow-state:in_progress-inline]\n",
-    );
-
-    const parsed = JSON.parse(
-      runPython(
-        codexHookPath,
-        JSON.stringify({ cwd: tmpDir, session_id: "workflow-a" }),
-      ),
-    ) as { hookSpecificOutput: { additionalContext: string } };
-    const ctx = parsed.hookSpecificOutput.additionalContext;
-    expect(ctx).toContain("MAIN SESSION edits code");
-    expect(ctx).not.toContain("DISPATCH the coding-implement");
-  });
-
-  it("[issue-codex-dispatch-mode] codex breadcrumb routes to plain status when codex.dispatch_mode=sub-agent", () => {
-    setupTaskRepo();
-    writeSessionContext("session_workflow-a", ".coding/tasks/issue-106");
-    const codexHookPath = writeCodexInjectHook();
-    writeProjectFile(
-      path.join(".coding", "workflow.md"),
-      "[workflow-state:in_progress]\n" +
-        "DISPATCH the coding-implement / coding-check sub-agents.\n" +
-        "[/workflow-state:in_progress]\n" +
-        "[workflow-state:in_progress-inline]\n" +
-        "MAIN SESSION edits code via coding-before-dev directly.\n" +
-        "[/workflow-state:in_progress-inline]\n",
-    );
-    writeConfigYaml("codex:\n  dispatch_mode: sub-agent\n");
-
-    const parsed = JSON.parse(
-      runPython(
-        codexHookPath,
-        JSON.stringify({ cwd: tmpDir, session_id: "workflow-a" }),
-      ),
-    ) as { hookSpecificOutput: { additionalContext: string } };
-    const ctx = parsed.hookSpecificOutput.additionalContext;
-    expect(ctx).toContain("DISPATCH the coding-implement");
-    expect(ctx).not.toContain("MAIN SESSION edits code");
-  });
-
-  it("[issue-codex-dispatch-mode] codex breadcrumb routes to inline tag when codex.dispatch_mode=inline", () => {
-    setupTaskRepo();
-    writeSessionContext("session_workflow-a", ".coding/tasks/issue-106");
-    const codexHookPath = writeCodexInjectHook();
-    writeProjectFile(
-      path.join(".coding", "workflow.md"),
-      "[workflow-state:in_progress]\n" +
-        "DISPATCH the coding-implement / coding-check sub-agents.\n" +
-        "[/workflow-state:in_progress]\n" +
-        "[workflow-state:in_progress-inline]\n" +
-        "MAIN SESSION edits code via coding-before-dev directly.\n" +
-        "[/workflow-state:in_progress-inline]\n",
-    );
-    writeConfigYaml("codex:\n  dispatch_mode: inline\n");
-
-    const parsed = JSON.parse(
-      runPython(
-        codexHookPath,
-        JSON.stringify({ cwd: tmpDir, session_id: "workflow-a" }),
-      ),
-    ) as { hookSpecificOutput: { additionalContext: string } };
-    const ctx = parsed.hookSpecificOutput.additionalContext;
-    expect(ctx).toContain("MAIN SESSION edits code");
-    expect(ctx).toContain("coding-before-dev");
-    expect(ctx).not.toContain("DISPATCH the coding-implement");
-  });
-
-  it("[issue-codex-dispatch-mode] non-codex platform ignores codex.dispatch_mode=inline", () => {
-    setupTaskRepo();
-    writeSessionContext("session_workflow-a", ".coding/tasks/issue-106");
-    // Hook installed under .claude/ — _detect_platform returns "claude".
-    const claudeHookPath = path.join(
-      ".claude",
-      "hooks",
-      "inject-workflow-state.py",
-    );
-    writeProjectFile(
-      claudeHookPath,
-      expectTemplateContent(injectWorkflowStateScript, "inject-workflow-state"),
-    );
-    writeProjectFile(
-      path.join(".coding", "workflow.md"),
-      "[workflow-state:in_progress]\n" +
-        "DISPATCH the coding-implement / coding-check sub-agents.\n" +
-        "[/workflow-state:in_progress]\n" +
-        "[workflow-state:in_progress-inline]\n" +
-        "MAIN SESSION edits code via coding-before-dev directly.\n" +
-        "[/workflow-state:in_progress-inline]\n",
-    );
-    writeConfigYaml("codex:\n  dispatch_mode: inline\n");
-
-    const parsed = JSON.parse(
-      runPython(
-        claudeHookPath,
-        JSON.stringify({ cwd: tmpDir, session_id: "workflow-a" }),
-      ),
-    ) as { hookSpecificOutput: { additionalContext: string } };
-    const ctx = parsed.hookSpecificOutput.additionalContext;
-    expect(ctx).toContain("DISPATCH the coding-implement");
-    expect(ctx).not.toContain("MAIN SESSION edits code");
-  });
-
-  it("[issue-codex-dispatch-mode] resolve_breadcrumb_key picks status-inline only for codex+inline", () => {
-    // Cover all four cases via the actual hook helper (imported from the
-    // installed shared-hooks template). This locks the helper's contract
-    // rather than retesting an inline copy.
-    writeCodingScripts();
-    writeProjectFile(
-      path.join(".coding", "hooks", "inject-workflow-state.py"),
-      expectTemplateContent(injectWorkflowStateScript, "inject-workflow-state"),
-    );
-    const probePath = path.join(tmpDir, "probe_breadcrumb.py");
-    fs.writeFileSync(
-      probePath,
-      [
-        "import importlib.util, json, sys",
-        "from pathlib import Path",
-        `hook_path = Path(${JSON.stringify(
-          path.join(tmpDir, ".coding", "hooks", "inject-workflow-state.py"),
-        )})`,
-        "spec = importlib.util.spec_from_file_location('iws', hook_path)",
-        "mod = importlib.util.module_from_spec(spec)",
-        "spec.loader.exec_module(mod)",
-        "result = {",
-        "  'codex_inline': mod.resolve_breadcrumb_key('in_progress', 'codex', {'codex': {'dispatch_mode': 'inline'}}),",
-        "  'codex_subagent': mod.resolve_breadcrumb_key('in_progress', 'codex', {'codex': {'dispatch_mode': 'sub-agent'}}),",
-        "  'codex_missing': mod.resolve_breadcrumb_key('in_progress', 'codex', {}),",
-        "  'claude_inline': mod.resolve_breadcrumb_key('in_progress', 'claude', {'codex': {'dispatch_mode': 'inline'}}),",
-        "}",
-        "print(json.dumps(result))",
-      ].join("\n"),
-    );
-    const output = execSync(`${pythonCmd} ${JSON.stringify(probePath)}`, {
-      cwd: tmpDir,
-      encoding: "utf-8",
-    });
-    const result = JSON.parse(
-      output
-        .split("\n")
-        .filter((l) => l.startsWith("{"))
-        .pop() ?? "{}",
-    ) as Record<string, string>;
-    expect(result.codex_inline).toBe("in_progress-inline");
-    expect(result.codex_subagent).toBe("in_progress");
-    // Default for codex (missing config) is inline since 0.5.9.
-    expect(result.codex_missing).toBe("in_progress-inline");
-    expect(result.claude_inline).toBe("in_progress");
-  });
-
-  it("[issue-codex-dispatch-mode] inline `#` comment after value is stripped (config.yaml uncomment leaves trailing hint)", () => {
-    // The shipped template has:
-    //   #   dispatch_mode: sub-agent  # or "inline" to let the main agent edit code directly
-    // Users uncomment by removing leading `#` and may change "sub-agent" to "inline"
-    // while leaving the trailing hint comment, producing:
-    //   codex:
-    //     dispatch_mode: inline  # or "inline" to let the main agent edit code directly
-    // The minimal YAML parser MUST treat the trailing ` # ...` as a comment, not as
-    // part of the value, otherwise resolve_breadcrumb_key sees an opaque string and
-    // falls back to sub-agent dispatch.
-    setupTaskRepo();
-    writeCodingScripts();
-    writeProjectFile(
-      path.join(".coding", "hooks", "coding_config.py"),
-      expectTemplateContent(
-        getAllScripts().get("common/coding_config.py") ?? "",
-        "coding_config",
-      ),
-    );
-    const probePath = path.join(tmpDir, "probe_inline_comment.py");
-    fs.writeFileSync(
-      probePath,
-      [
-        "import importlib.util, json, sys",
-        "from pathlib import Path",
-        `hook_path = Path(${JSON.stringify(
-          path.join(tmpDir, ".coding", "hooks", "coding_config.py"),
-        )})`,
-        "spec = importlib.util.spec_from_file_location('tc', hook_path)",
-        "mod = importlib.util.module_from_spec(spec)",
-        "spec.loader.exec_module(mod)",
-        "yaml = 'codex:\\n  dispatch_mode: inline  # or \"inline\" to let the main agent edit code directly\\n'",
-        "parsed = mod.parse_simple_yaml(yaml)",
-        "print(json.dumps(parsed))",
-      ].join("\n"),
-    );
-    const output = execSync(`${pythonCmd} ${JSON.stringify(probePath)}`, {
-      cwd: tmpDir,
-      encoding: "utf-8",
-    });
-    const parsed = JSON.parse(
-      output
-        .split("\n")
-        .filter((l) => l.startsWith("{"))
-        .pop() ?? "{}",
-    ) as { codex?: { dispatch_mode?: string } };
-    expect(parsed.codex?.dispatch_mode).toBe("inline");
-  });
-
-  it("[issue-codex-dispatch-mode] resolve_effective_platform namespaces codex into codex-sub-agent / codex-inline", () => {
-    setupTaskRepo();
-    writeCodingScripts();
-    const probePath = path.join(tmpDir, "probe_effective_platform.py");
-    fs.writeFileSync(
-      probePath,
-      [
-        "import sys, json",
-        `sys.path.insert(0, ${JSON.stringify(path.join(tmpDir, ".coding", "scripts"))})`,
-        "from common.workflow_phase import resolve_effective_platform",
-        "result = {",
-        "  'codex_default': resolve_effective_platform('codex', {}),",
-        "  'codex_explicit_subagent': resolve_effective_platform('codex', {'codex': {'dispatch_mode': 'sub-agent'}}),",
-        "  'codex_inline': resolve_effective_platform('codex', {'codex': {'dispatch_mode': 'inline'}}),",
-        "  'codex_invalid_mode': resolve_effective_platform('codex', {'codex': {'dispatch_mode': 'invalid'}}),",
-        "  'claude_passthrough': resolve_effective_platform('claude', {'codex': {'dispatch_mode': 'inline'}}),",
-        "}",
-        "print(json.dumps(result))",
-      ].join("\n"),
-    );
-    const output = execSync(`${pythonCmd} ${JSON.stringify(probePath)}`, {
-      cwd: tmpDir,
-      encoding: "utf-8",
-    });
-    const result = JSON.parse(
-      output
-        .split("\n")
-        .filter((l) => l.startsWith("{"))
-        .pop() ?? "{}",
-    ) as Record<string, string>;
-    expect(result.codex_default).toBe("codex-inline");
-    expect(result.codex_explicit_subagent).toBe("codex-sub-agent");
-    expect(result.codex_inline).toBe("codex-inline");
-    // Invalid mode falls back to default inline rather than passing through.
-    expect(result.codex_invalid_mode).toBe("codex-inline");
-    // Non-codex platforms ignore the codex.dispatch_mode setting.
-    expect(result.claude_passthrough).toBe("claude");
-  });
-
-  it("[issue-codex-dispatch-mode] codex hook injects <codex-mode> banner reflecting dispatch_mode", () => {
-    setupTaskRepo();
-    writeSessionContext("session_workflow-a", ".coding/tasks/issue-106");
-    const codexHookPath = path.join(
-      ".codex",
-      "hooks",
-      "inject-workflow-state.py",
-    );
-    writeProjectFile(
-      codexHookPath,
-      expectTemplateContent(injectWorkflowStateScript, "inject-workflow-state"),
-    );
-    writeProjectFile(
-      path.join(".coding", "workflow.md"),
-      "[workflow-state:in_progress]\nDISPATCH the coding-implement.\n[/workflow-state:in_progress]\n[workflow-state:in_progress-inline]\nMAIN SESSION inline edit.\n[/workflow-state:in_progress-inline]\n",
-    );
-
-    // Default (no config.yaml) → inline banner.
-    const defaultRun = JSON.parse(
-      runPython(
-        codexHookPath,
-        JSON.stringify({ cwd: tmpDir, session_id: "workflow-a" }),
-      ),
-    ) as { hookSpecificOutput: { additionalContext: string } };
-    expect(defaultRun.hookSpecificOutput.additionalContext).toContain(
-      "<codex-mode>inline: the main session implements/checks directly; do not dispatch implement/check sub-agents.</codex-mode>",
-    );
-
-    // Explicit sub-agent → sub-agent banner.
-    writeConfigYaml("codex:\n  dispatch_mode: sub-agent\n");
-    const subAgentRun = JSON.parse(
-      runPython(
-        codexHookPath,
-        JSON.stringify({ cwd: tmpDir, session_id: "workflow-a" }),
-      ),
-    ) as { hookSpecificOutput: { additionalContext: string } };
-    expect(subAgentRun.hookSpecificOutput.additionalContext).toContain(
-      "<codex-mode>sub-agent: implement/check work defaults to Coding sub-agents; the main session still coordinates, clarifies, updates specs, commits, and finishes.</codex-mode>",
-    );
-  });
-
-  it("[issue-codex-dispatch-mode] non-codex hook does NOT inject <codex-mode> banner", () => {
-    setupTaskRepo();
-    writeSessionContext("session_workflow-a", ".coding/tasks/issue-106");
-    // Hook installed under .claude/ — _detect_platform returns "claude".
-    const claudeHookPath = path.join(
-      ".claude",
-      "hooks",
-      "inject-workflow-state.py",
-    );
-    writeProjectFile(
-      claudeHookPath,
-      expectTemplateContent(injectWorkflowStateScript, "inject-workflow-state"),
-    );
-    writeProjectFile(
-      path.join(".coding", "workflow.md"),
-      "[workflow-state:in_progress]\nDISPATCH the coding-implement.\n[/workflow-state:in_progress]\n",
-    );
-    writeConfigYaml("codex:\n  dispatch_mode: inline\n");
-
-    const result = JSON.parse(
-      runPython(
-        claudeHookPath,
-        JSON.stringify({ cwd: tmpDir, session_id: "workflow-a" }),
-      ),
-    ) as { hookSpecificOutput: { additionalContext: string } };
-    expect(result.hookSpecificOutput.additionalContext).not.toContain(
-      "<codex-mode>",
-    );
-  });
 });
 
 describe("regression: backslash in markdown templates (beta.12)", () => {
@@ -4109,181 +3392,7 @@ describe("regression: platform additions (beta.9, beta.13, beta.16)", () => {
   });
 });
 
-describe("regression: cli_adapter platform support (beta.9, beta.13, beta.16)", () => {
-  it("[beta.9] cli_adapter.py supports opencode platform", () => {
-    expect(commonCliAdapter).toContain('"opencode"');
-    expect(commonCliAdapter).toContain(".opencode");
-  });
-
-  it("[beta.13] cli_adapter.py supports cursor platform", () => {
-    expect(commonCliAdapter).toContain('"cursor"');
-    expect(commonCliAdapter).toContain(".cursor");
-  });
-
-  it("[codex] cli_adapter.py supports codex platform", () => {
-    expect(commonCliAdapter).toContain('"codex"');
-    expect(commonCliAdapter).toContain(".agents");
-    expect(commonCliAdapter).toContain(".codex");
-  });
-
-  it("[kiro] cli_adapter.py supports kiro platform", () => {
-    expect(commonCliAdapter).toContain('"kiro"');
-    expect(commonCliAdapter).toContain(".kiro");
-  });
-
-  it("[gemini] cli_adapter.py supports gemini platform", () => {
-    expect(commonCliAdapter).toContain('"gemini"');
-    expect(commonCliAdapter).toContain(".gemini");
-  });
-
-  it("[antigravity] cli_adapter.py supports antigravity platform", () => {
-    expect(commonCliAdapter).toContain('"antigravity"');
-    expect(commonCliAdapter).toContain(".agent");
-  });
-
-  it("[devin] cli_adapter.py supports devin platform (formerly windsurf)", () => {
-    expect(commonCliAdapter).toContain('"devin"');
-    expect(commonCliAdapter).toContain(".devin");
-    // Legacy .windsurf/ is still recognized for back-compat detection.
-    expect(commonCliAdapter).toContain(".windsurf");
-  });
-
-  it("[qoder] cli_adapter.py supports qoder platform", () => {
-    expect(commonCliAdapter).toContain('"qoder"');
-    expect(commonCliAdapter).toContain(".qoder");
-  });
-
-  it("[codebuddy] cli_adapter.py supports codebuddy platform", () => {
-    expect(commonCliAdapter).toContain('"codebuddy"');
-    expect(commonCliAdapter).toContain(".codebuddy");
-  });
-
-  it("[copilot] cli_adapter.py supports copilot platform", () => {
-    expect(commonCliAdapter).toContain('"copilot"');
-    expect(commonCliAdapter).toContain(".github/copilot");
-  });
-
-  it("[droid] cli_adapter.py supports droid platform", () => {
-    expect(commonCliAdapter).toContain('"droid"');
-    expect(commonCliAdapter).toContain(".factory");
-  });
-
-  it("[pi] cli_adapter.py supports pi platform", () => {
-    expect(commonCliAdapter).toContain('"pi"');
-    expect(commonCliAdapter).toContain(".pi");
-    expect(commonCliAdapter).toContain('cmd = ["pi", "-p", prompt]');
-    expect(commonCliAdapter).toContain('return ["pi", "-c", session_id]');
-    expect(commonCliAdapter).toContain(
-      'return f".pi/prompts/coding-{name}.md"',
-    );
-  });
-
-  it("[omp] cli_adapter.py supports omp platform", () => {
-    expect(commonCliAdapter).toContain('"omp"');
-    expect(commonCliAdapter).toContain(".omp");
-  });
-
-  it("[droid] cli_adapter.py treats droid as commands-only (no CLI run/resume yet)", () => {
-    expect(commonCliAdapter).toContain(
-      "Factory Droid CLI agent run is not yet supported.",
-    );
-    expect(commonCliAdapter).toContain(
-      "Factory Droid CLI resume is not yet supported.",
-    );
-    expect(commonCliAdapter).toContain('elif self.platform == "droid":');
-    expect(commonCliAdapter).toContain('return "droid"');
-    expect(commonCliAdapter).toContain(
-      'return f".factory/commands/coding/{name}.md"',
-    );
-  });
-
-  it("[droid] cli_adapter.py has explicit droid branches in all key methods", () => {
-    expect(commonCliAdapter).toMatch(
-      /def get_coding_command_path[\s\S]*?elif self\.platform == "droid":[\s\S]*?\.factory\/commands\/coding\//,
-    );
-    expect(commonCliAdapter).toMatch(
-      /def get_non_interactive_env[\s\S]*?elif self\.platform == "droid":[\s\S]*?return \{\}/,
-    );
-    expect(commonCliAdapter).toMatch(
-      /def build_run_command[\s\S]*?elif self\.platform == "droid":[\s\S]*?CLI agent run is not yet supported/,
-    );
-    expect(commonCliAdapter).toMatch(
-      /def build_resume_command[\s\S]*?elif self\.platform == "droid":[\s\S]*?CLI resume is not yet supported/,
-    );
-    expect(commonCliAdapter).toMatch(
-      /def cli_name[\s\S]*?elif self\.platform == "droid":[\s\S]*?return "droid"/,
-    );
-  });
-
-  it("[droid] cli_adapter.py detect_platform handles .factory directory", () => {
-    expect(commonCliAdapter).toContain('return "droid"');
-    expect(commonCliAdapter).toMatch(
-      /detect_platform[\s\S]*?\.factory[\s\S]*?return "droid"/,
-    );
-  });
-
-  it("[beta.9] cli_adapter.py has detect_platform function", () => {
-    expect(commonCliAdapter).toContain("def detect_platform");
-  });
-
-  // Regression for 04-22-migrate-flow-bugs Bug A: codex/kiro branches of
-  // get_coding_command_path were missing the `coding-` prefix that
-  // 0.5.0-beta.0 introduced via 60+ rename manifest entries. Without the
-  // prefix, any caller that built skill paths via get_coding_command_path
-  // (add-context, check agent prelude, etc.) would produce paths that don't
-  // resolve to any real skill file.
-  it("[migrate-flow-bugs] get_coding_command_path codex branch uses coding- prefix", () => {
-    expect(commonCliAdapter).toMatch(
-      /def get_coding_command_path[\s\S]*?elif self\.platform == "codex":[\s\S]*?return f"\.agents\/skills\/coding-\{name\}\/SKILL\.md"/,
-    );
-    expect(commonCliAdapter).not.toMatch(
-      /def get_coding_command_path[\s\S]*?elif self\.platform == "codex":[\s\S]*?return f"\.agents\/skills\/\{name\}\/SKILL\.md"/,
-    );
-  });
-
-  it("[migrate-flow-bugs] get_coding_command_path kiro branch uses coding- prefix", () => {
-    expect(commonCliAdapter).toMatch(
-      /def get_coding_command_path[\s\S]*?elif self\.platform == "kiro":[\s\S]*?return f"\.kiro\/skills\/coding-\{name\}\/SKILL\.md"/,
-    );
-    expect(commonCliAdapter).not.toMatch(
-      /def get_coding_command_path[\s\S]*?elif self\.platform == "kiro":[\s\S]*?return f"\.kiro\/skills\/\{name\}\/SKILL\.md"/,
-    );
-  });
-
-  // Regression for 04-22-migrate-flow-bugs Bug B: .agents/skills/ is a shared
-  // layer (Codex writes, Amp/Cline consume via agentskills.io standard) — not
-  // a single-platform config dir. Previously included in
-  // _ALL_PLATFORM_CONFIG_DIRS, which caused Kiro / Antigravity / Windsurf
-  // detection to fail whenever .agents/ existed (codex had already excluded
-  // it, other platforms had not).
-  it("[migrate-flow-bugs] _ALL_PLATFORM_CONFIG_DIRS excludes .agents (shared layer, not platform-specific)", () => {
-    expect(commonCliAdapter).toMatch(/_ALL_PLATFORM_CONFIG_DIRS\s*=\s*\(/);
-    const tupleMatch = commonCliAdapter.match(
-      /_ALL_PLATFORM_CONFIG_DIRS\s*=\s*\(([\s\S]*?)\)/,
-    );
-    expect(tupleMatch).toBeTruthy();
-    const tupleBody = (tupleMatch as RegExpMatchArray)[1];
-    expect(tupleBody).not.toMatch(/"\.agents"/);
-    // Must still include actual platform dirs
-    expect(tupleBody).toContain('".claude"');
-    expect(tupleBody).toContain('".codex"');
-    expect(tupleBody).toContain('".kiro"');
-  });
-
-  it("[migrate-flow-bugs] detect_platform has codex shared-skills fallback guarded by no-other-platform-dir check", () => {
-    // Fallback fires when .agents/skills/coding-* exists AND no other
-    // platform dir is present. Guard is essential — .agents/skills/ can
-    // legitimately coexist with .claude (claude user + shared layer for
-    // other agents) and must not trigger codex in that case.
-    expect(commonCliAdapter).toMatch(
-      /agents_skills\s*=\s*project_root\s*\/\s*"\.agents"\s*\/\s*"skills"/,
-    );
-    expect(commonCliAdapter).toMatch(
-      /if agents_skills\.is_dir\(\) and not _has_other_platform_dir\(\s*project_root,\s*set\(\)/,
-    );
-    expect(commonCliAdapter).toMatch(/entry\.name\.startswith\("coding-"\)/);
-  });
-
+describe("regression: task planning context seeding (init-context-removal)", () => {
   // v0.5.0-beta.12 removed `task.py init-context`; jsonl manifests are now
   // curated during planning when needed. The subparser, cmd_init_context, and get_check_context
   // helpers are all gone. task.py still guards against old invocations with
@@ -4329,14 +3438,6 @@ describe("regression: cli_adapter platform support (beta.9, beta.13, beta.16)", 
     // Sub-agent platform probe.
     expect(taskStore as string).toMatch(/_SUBAGENT_CONFIG_DIRS/);
     expect(taskStore as string).toContain('".claude"');
-    expect(taskStore as string).toContain('".github/copilot"');
-    expect(taskStore as string).toContain('".pi"');
-    expect(taskStore as string).toContain('".zcode"');
-    expect(taskStore as string).toContain('_CODEX_CONFIG_DIR = ".codex"');
-    expect(taskStore as string).toContain(
-      'get_codex_dispatch_mode(repo_root) == "sub-agent"',
-    );
-    expect(commonConfig).toContain("def get_codex_dispatch_mode");
     // Seed row is self-describing and has no `file` field (so consumers skip
     // it naturally).
     expect(taskStore as string).toMatch(/_write_seed_jsonl/);
@@ -4355,65 +3456,6 @@ describe("regression: cli_adapter platform support (beta.9, beta.13, beta.16)", 
       "utf-8",
     );
     expect(start).not.toContain("task.py init-context");
-  });
-
-  it("[beta.9] cli_adapter.py has get_cli_adapter function with validation", () => {
-    expect(commonCliAdapter).toContain("def get_cli_adapter");
-    // Should validate platform parameter
-    expect(commonCliAdapter).toContain("Unsupported platform");
-  });
-
-  it("[beta.12] cli_adapter.py has config_dir_name property for each platform", () => {
-    expect(commonCliAdapter).toContain("config_dir_name");
-    expect(commonCliAdapter).toContain(".claude");
-    expect(commonCliAdapter).toContain(".cursor");
-    expect(commonCliAdapter).toContain(".opencode");
-    expect(commonCliAdapter).toContain(".codex");
-    expect(commonCliAdapter).toContain(".kiro");
-    expect(commonCliAdapter).toContain(".gemini");
-    expect(commonCliAdapter).toContain(".agent");
-    expect(commonCliAdapter).toContain(".devin");
-    expect(commonCliAdapter).toContain(".qoder");
-    expect(commonCliAdapter).toContain(".codebuddy");
-    expect(commonCliAdapter).toContain(".github/copilot");
-    expect(commonCliAdapter).toContain(".factory");
-    expect(commonCliAdapter).toContain(".pi");
-    expect(commonCliAdapter).toContain(".omp");
-  });
-
-  it("[copilot] cli_adapter.py treats copilot as IDE-only (no CLI run/resume)", () => {
-    expect(commonCliAdapter).toContain(
-      "GitHub Copilot is IDE-only; CLI agent run is not supported.",
-    );
-    expect(commonCliAdapter).toContain(
-      "GitHub Copilot is IDE-only; CLI resume is not supported.",
-    );
-    expect(commonCliAdapter).toContain('elif self.platform == "copilot":');
-    expect(commonCliAdapter).toContain('return "copilot"');
-    expect(commonCliAdapter).toContain(
-      'return f".github/prompts/{name}.prompt.md"',
-    );
-  });
-
-  it("[copilot] cli_adapter.py has explicit copilot branches in all key methods", () => {
-    expect(commonCliAdapter).toMatch(
-      /def get_commands_path[\s\S]*?if self\.platform == "copilot":[\s\S]*?prompts_dir/,
-    );
-    expect(commonCliAdapter).toMatch(
-      /def get_coding_command_path[\s\S]*?elif self\.platform == "copilot":[\s\S]*?\.github\/prompts\//,
-    );
-    expect(commonCliAdapter).toMatch(
-      /def get_non_interactive_env[\s\S]*?elif self\.platform == "copilot":[\s\S]*?return \{\}/,
-    );
-    expect(commonCliAdapter).toMatch(
-      /def build_run_command[\s\S]*?elif self\.platform == "copilot":[\s\S]*?CLI agent run is not supported/,
-    );
-    expect(commonCliAdapter).toMatch(
-      /def build_resume_command[\s\S]*?elif self\.platform == "copilot":[\s\S]*?CLI resume is not supported/,
-    );
-    expect(commonCliAdapter).toMatch(
-      /def cli_name[\s\S]*?elif self\.platform == "copilot":[\s\S]*?return "copilot"/,
-    );
   });
 });
 
@@ -4637,7 +3679,6 @@ describe("regression: hook templates honor CODING_HOOKS gate", () => {
       "session-start.py",
       "inject-workflow-state.py",
       "inject-subagent-context.py",
-      "inject-shell-session-context.py",
     ];
     for (const name of sharedHookTargets) {
       const script = getSharedHookScripts().find(

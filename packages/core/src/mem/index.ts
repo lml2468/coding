@@ -1,7 +1,6 @@
 /**
  * Public surface for `@limenglin/coding-core/mem` — reusable retrieval and
- * dialogue-context extraction over persisted Claude Code / Codex / OpenCode
- * sessions.
+ * dialogue-context extraction over persisted Claude Code sessions.
  *
  * This subpackage is intentionally NOT re-exported from the root
  * `@limenglin/coding-core` barrel. Import it explicitly:
@@ -9,7 +8,7 @@
  *   import { searchMemSessions } from "@limenglin/coding-core/mem";
  *
  * v1 scope: persisted-session search and context extraction only. It has no
- * cursor / pagination.
+ * pagination.
  */
 
 export {

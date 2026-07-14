@@ -217,7 +217,7 @@ function sliceMemPhase(s: MemSessionInfo, phase: MemPhase): PhaseSlice {
 
 // ---------- public API ----------
 
-/** List session metadata across Claude / Codex / OpenCode / Pi, sorted by
+/** List Claude Code session metadata, sorted by
  * recency and capped at the filter's `limit` (default 50). */
 export function listMemSessions(
   options?: ListMemSessionsOptions,

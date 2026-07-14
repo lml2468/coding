@@ -23,7 +23,6 @@ from datetime import datetime
 from pathlib import Path
 
 from .config import (
-    get_codex_dispatch_mode,
     get_packages,
     get_session_auto_commit,
     is_monorepo,
@@ -113,28 +112,10 @@ def _repo_relative_path(path: Path, repo_root: Path) -> str:
 # Sub-agent platform detection + JSONL seeding
 # =============================================================================
 
-# Config directories of platforms that consume implement.jsonl / check.jsonl.
-# Keep in sync with src/types/ai-tools.ts AI_TOOLS entries — these are the
-# platforms listed in workflow.md's "agent-capable" Skill Routing block.
-# Codex is checked separately because default inline mode does not consume
-# JSONL. Kilo / Antigravity / Devin are NOT in this list either: they load
-# specs through skills instead of JSONL.
+# Config directory of the platform that consumes implement.jsonl / check.jsonl.
 _SUBAGENT_CONFIG_DIRS: tuple[str, ...] = (
     ".claude",
-    ".cursor",
-    ".kiro",
-    ".gemini",
-    ".opencode",
-    ".qoder",
-    ".codebuddy",
-    ".factory",   # Factory Droid
-    ".github/copilot",
-    ".pi",        # Pi Agent
-    ".trae",      # Trae IDE
-    ".omp",       # Oh My Pi
-    ".zcode",     # ZCode
 )
-_CODEX_CONFIG_DIR = ".codex"
 
 _SEED_EXAMPLE = (
     "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. "
@@ -145,17 +126,13 @@ _SEED_EXAMPLE = (
 
 
 def _has_subagent_platform(repo_root: Path) -> bool:
-    """Return True if any sub-agent-capable platform is configured.
+    """Return True if a sub-agent-capable platform is configured.
 
-    Detected by probing well-known config directories at the repo root. Codex
-    only counts when ``codex.dispatch_mode`` explicitly opts into
-    ``sub-agent``; inline mode loads context through skills, not JSONL.
+    Detected by probing the well-known config directory at the repo root.
     """
     for config_dir in _SUBAGENT_CONFIG_DIRS:
         if (repo_root / config_dir).is_dir():
             return True
-    if (repo_root / _CODEX_CONFIG_DIR).is_dir():
-        return get_codex_dispatch_mode(repo_root) == "sub-agent"
     return False
 
 
@@ -343,10 +320,8 @@ def cmd_create(args: argparse.Namespace) -> int:
             encoding="utf-8",
         )
 
-    # Seed implement.jsonl / check.jsonl for sub-agent-capable platforms.
+    # Seed implement.jsonl / check.jsonl for sub-agent context.
     # Agent curates real entries during planning when the task needs them.
-    # Agent-less platforms (Kilo / Antigravity / Devin) skip this — they
-    # load specs via the coding-before-dev skill instead of JSONL.
     seeded_jsonl = False
     if _has_subagent_platform(repo_root):
         for jsonl_name in ("implement.jsonl", "check.jsonl"):

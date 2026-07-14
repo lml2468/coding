@@ -26,51 +26,25 @@ export interface HookScript {
 
 export type SharedHookName =
   | "session-start.py"
-  | "inject-shell-session-context.py"
   | "inject-workflow-state.py"
   | "inject-subagent-context.py";
 
-export type SharedHookPlatform =
-  | "claude"
-  | "cursor"
-  | "codex"
-  | "gemini"
-  | "qoder"
-  | "copilot"
-  | "codebuddy"
-  | "droid"
-  | "kiro"
-  | "trae";
+export type SharedHookPlatform = "claude";
 
 /**
  * Which shared hooks each platform actually invokes. Single source of truth
  * for shared-hook distribution — both `writeSharedHooks` (runtime install)
  * and `collectSharedHooks` (`coding update` diff) read from this table.
  *
- * Routing rules encoded here:
- * - `session-start.py` — shipped by every platform with a SessionStart
- *   hook event *except* codex + copilot, which bundle a platform-specific
- *   session-start.py under their own template dirs.
- * - `inject-workflow-state.py` — every platform with a UserPromptSubmit
- *   (or equivalent) event. Kiro + codex self-included; platforms without
- *   per-turn main-session hooks are excluded.
- * - `inject-subagent-context.py` — class-1 (push-based) platforms only.
- *   Class-2 (pull-based) platforms (codex, copilot, gemini, qoder) can't
- *   have hooks mutate sub-agent prompts — their sub-agents load context
- *   via a prelude instead.
- * - Kiro supports per-turn + spawn hooks on both surfaces (per the official
- *   docs https://kiro.dev/docs/cli/hooks/): the CLI custom agent declares
- *   `hooks.userPromptSubmit` + `hooks.agentSpawn`, and the IDE declares a
- *   `.kiro.hook` with `when.type=promptSubmit`. So Kiro ships
- *   `session-start.py` (agentSpawn overview), `inject-workflow-state.py`
- *   (per-turn breadcrumb), and `inject-subagent-context.py` (sub-agent
- *   spawn). The scripts emit a plain-text Kiro branch — Kiro adds a hook's
- *   stdout directly to the conversation context (no JSON envelope).
- * - Claude Code `statusLine` is intentionally not installed by default.
- *   Users can add their own statusLine command in `.claude/settings.json`,
- *   or opt in to the Coding one via `coding init --with-statusline`
- *   (installed from `templates/claude/hooks/`, not from this table — no
- *   other platform has a statusLine event).
+ * Claude Code registers all three shared hooks:
+ * - `session-start.py` — SessionStart overview.
+ * - `inject-workflow-state.py` — per-turn UserPromptSubmit breadcrumb.
+ * - `inject-subagent-context.py` — PreToolUse sub-agent prompt injection.
+ *
+ * Claude Code `statusLine` is intentionally not installed by default. Users
+ * can add their own statusLine command in `.claude/settings.json`, or opt in
+ * to the Coding one via `coding init --with-statusline` (installed from
+ * `templates/claude/hooks/`, not from this table).
  */
 export const SHARED_HOOKS_BY_PLATFORM: Record<
   SharedHookPlatform,
@@ -81,31 +55,6 @@ export const SHARED_HOOKS_BY_PLATFORM: Record<
     "inject-workflow-state.py",
     "inject-subagent-context.py",
   ],
-  cursor: [
-    "session-start.py",
-    "inject-shell-session-context.py",
-    "inject-subagent-context.py",
-  ],
-  codex: ["inject-workflow-state.py"],
-  gemini: ["session-start.py", "inject-workflow-state.py"],
-  qoder: ["session-start.py", "inject-workflow-state.py"],
-  copilot: ["inject-workflow-state.py"],
-  codebuddy: [
-    "session-start.py",
-    "inject-workflow-state.py",
-    "inject-subagent-context.py",
-  ],
-  droid: [
-    "session-start.py",
-    "inject-workflow-state.py",
-    "inject-subagent-context.py",
-  ],
-  kiro: [
-    "session-start.py",
-    "inject-workflow-state.py",
-    "inject-subagent-context.py",
-  ],
-  trae: ["session-start.py", "inject-workflow-state.py"],
 };
 
 /**
