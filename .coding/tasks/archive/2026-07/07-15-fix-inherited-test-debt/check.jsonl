@@ -1,0 +1,2 @@
+{"file": ".coding/spec/coding/backend/hook-contracts.md", "reason": "verify product fixes match documented hook contract"}
+{"file": ".coding/tasks/07-15-fix-inherited-test-debt/design.md", "reason": "verify per-failure classification + no-weakening + #356 both-cases"}

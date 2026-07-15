@@ -1,0 +1,32 @@
+{
+  "id": "fix-inherited-test-debt",
+  "name": "fix-inherited-test-debt",
+  "title": "Fix fork-inherited failing tests (regression + task-archive)",
+  "description": "Diagnose and fix the 15 regression.test.ts + 1 task-archive.integration.test.ts failures present since the fork's initial commit. Determine per-failure whether test or product is wrong; fix accordingly.",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "lml2468",
+  "assignee": "lml2468",
+  "createdAt": "2026-07-15",
+  "completedAt": "2026-07-15",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "loop": {
+      "check_status": "pass",
+      "iteration_count": 0,
+      "last_check_at": "2026-07-15T13:42:36Z"
+    }
+  }
+}

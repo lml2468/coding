@@ -1,0 +1,3 @@
+{"file": ".coding/spec/coding/backend/index.md", "reason": "backend/hook conventions for any product-side fix"}
+{"file": ".coding/spec/coding/backend/hook-contracts.md", "reason": "hook I/O contract + dual-write registration surfaces; stdin/exit behavior relevant to the empty-output failures"}
+{"file": ".coding/tasks/07-15-fix-inherited-test-debt/design.md", "reason": "diagnose-first strategy, root-cause hypotheses, #356 guardrail"}
