@@ -139,3 +139,36 @@ F3: activated dead [finish] path via meta.loop.check_status=pass second trigger 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 5: loop-engineering-hardening COMPLETE: parent integration 9/9
+
+**Date**: 2026-07-15
+**Task**: loop-engineering-hardening COMPLETE: parent integration 9/9
+**Branch**: `main`
+
+### Summary
+
+Completed the full loop-engineering-hardening parent: all 4 children (spike-loop-keystone, loop-core-gate, finish-path, cleanup-warn-refs) implemented/checked/archived. Parent cross-child AC suite 9/9 pass. Execution loop now closed: hard commit-gate denies commits until check passes (live-verified), finish path activated, tests in verification, executable AC, context-drop warnings, dangling refs removed. Spec sunk: hook-contracts.md + meta.loop schema. F8 deferred. Flagged fork-inherited test debt (regression.test.ts, task-archive) as out-of-scope.
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `158f2b2` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
