@@ -10,6 +10,7 @@ const ALL_HOOK_FILES = [
   "session-start.py",
   "inject-workflow-state.py",
   "inject-subagent-context.py",
+  "inject-commit-gate.py",
 ] as const;
 
 const EMPTY_EXCEPT_PASS_RE = /except[^\n]*:\n\s*pass\s*$/m;
@@ -55,9 +56,10 @@ describe("shared-hooks capability table", () => {
     }
   });
 
-  it("claude registers session-start, workflow-state, and subagent-context hooks", () => {
+  it("claude registers session-start, workflow-state, subagent-context, and commit-gate hooks", () => {
     expect([...SHARED_HOOKS_BY_PLATFORM.claude].sort()).toEqual(
       [
+        "inject-commit-gate.py",
         "inject-subagent-context.py",
         "inject-workflow-state.py",
         "session-start.py",
