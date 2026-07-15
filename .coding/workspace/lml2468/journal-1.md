@@ -39,3 +39,36 @@ Analyzed Coding loop-engineering gaps; planned parent+4-child tree. Ran spike: v
 ### Next Steps
 
 - None - task complete
+
+
+## Session 2: loop-core-gate: hard commit gate implemented
+
+**Date**: 2026-07-15
+**Task**: loop-core-gate: hard commit gate implemented
+**Branch**: `main`
+
+### Summary
+
+Implemented inject-commit-gate.py PreToolUse(Bash) hook: denies git commit when active task in_progress and check_status != pass, fail-open otherwise. Registered in shared-hooks index + both settings.json. All 6 ACs pass, fail-open audit clean. Live-verified: gate allowed the commit-gate's own commit because check_status=pass, and allowed archive because completed tasks aren't gated. Loop now closed: soft breadcrumb -> hard gate.
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `da6d2f4` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
