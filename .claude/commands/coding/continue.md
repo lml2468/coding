@@ -30,8 +30,12 @@ Shows the Phase Index (Plan / Execute / Finish) with routing + skill mapping.
 - `status=planning` + required artifacts complete + required jsonl curated or inline mode → **1.4** (ask for start review; only run `task.py start` after user confirms)
 - `status=in_progress` + implementation not started → **2.1**
 - `status=in_progress` + implementation done, not yet checked → **2.2**
-- `status=in_progress` + check passed → **3.3** (spec update) → **3.4** (commit)
+- `status=in_progress` + `meta.loop.check_status=fail` → back to **2.1** (re-implement to fix the check findings)
+- `status=in_progress` + `meta.loop.iteration_count >= 3` → load `coding-break-loop` (repeated failures — analyze root cause instead of looping)
+- `status=in_progress` + `meta.loop.check_status=pass` (check passed) → **3.3** (spec update) → **3.4** (commit)
 - `status=completed` (rare; usually archived immediately) → archive flow
+
+> `meta.loop` lives in the active task's `task.json` (written by `task.py set-check`). Absent `meta.loop` reads as `check_status=unknown`, `iteration_count=0` — treat as "not yet checked" (route to 2.2).
 
 Phase rules (full detail in `.coding/workflow.md`):
 

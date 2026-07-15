@@ -11,6 +11,7 @@ Provides:
     cmd_set_scope      - Set scope for PR title
     cmd_add_subtask    - Link child task to parent
     cmd_remove_subtask - Unlink child task from parent
+    cmd_set_check      - Record check pass/fail loop state on active task
 """
 
 from __future__ import annotations
@@ -790,4 +791,64 @@ def cmd_set_scope(args: argparse.Namespace) -> int:
     write_json(task_json, data)
 
     print(colored(f"✓ Scope set to: {scope}", Colors.GREEN))
+    return 0
+
+
+# =============================================================================
+# Command: set-check
+# =============================================================================
+
+def cmd_set_check(args: argparse.Namespace) -> int:
+    """Record check pass/fail loop state on the active task's meta.loop."""
+    repo_root = get_repo_root()
+
+    from .active_task import resolve_active_task
+
+    active = resolve_active_task(repo_root, platform="claude")
+    if not active.task_path:
+        print(
+            colored(
+                "Error: no active task; run task.py start <dir> first "
+                "(or session identity is unavailable).",
+                Colors.RED,
+            ),
+            file=sys.stderr,
+        )
+        return 1
+
+    task_json_path = repo_root / active.task_path / FILE_TASK_JSON
+    data = read_json(task_json_path)
+    if not data:
+        print(colored(f"Error: task.json not found at {active.task_path}", Colors.RED), file=sys.stderr)
+        return 1
+
+    meta = data.get("meta")
+    if not isinstance(meta, dict):
+        meta = {}
+        data["meta"] = meta
+
+    loop = meta.get("loop")
+    if not isinstance(loop, dict):
+        loop = {}
+    loop.setdefault("check_status", "unknown")
+    loop.setdefault("iteration_count", 0)
+
+    if args.state == "fail":
+        loop["check_status"] = "fail"
+        loop["iteration_count"] = int(loop.get("iteration_count", 0)) + 1
+    else:  # pass
+        loop["check_status"] = "pass"
+        loop["iteration_count"] = 0
+
+    from datetime import timezone
+    loop["last_check_at"] = (
+        datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    )
+
+    meta["loop"] = loop
+    write_json(task_json_path, data)
+
+    print(
+        f"Check status: {args.state} (iteration {loop['iteration_count']}) for {active.task_path}"
+    )
     return 0

@@ -83,6 +83,20 @@ Run project's lint and typecheck commands to verify changes.
 
 If failed, fix issues and re-run.
 
+### Step 5: Record Loop State
+
+After verification, record the outcome so the loop can route and gate correctly:
+
+- If lint and typecheck both pass (and any issues found were fixed):
+  `python3 ./.coding/scripts/task.py set-check pass`
+- Otherwise (unfixable failures remain):
+  `python3 ./.coding/scripts/task.py set-check fail`
+
+This writes `meta.loop.check_status` on the active task. `pass` lets the commit
+gate allow a commit and routes to finish; `fail` increments the iteration count
+so `/coding:continue` routes back to implement (or to `coding-break-loop` after
+repeated failures).
+
 ---
 
 ## Report Format

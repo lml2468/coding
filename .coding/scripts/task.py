@@ -55,6 +55,7 @@ from common.task_store import (
     cmd_set_scope,
     cmd_add_subtask,
     cmd_remove_subtask,
+    cmd_set_check,
 )
 from common.task_context import (
     cmd_add_context,
@@ -447,6 +448,10 @@ def main() -> int:
     p_scope.add_argument("dir", help="Task directory")
     p_scope.add_argument("scope", help="Scope name")
 
+    # set-check
+    p_setcheck = subparsers.add_parser("set-check", help="Record check pass/fail loop state on the active task")
+    p_setcheck.add_argument("state", choices=["pass", "fail"], help="check outcome")
+
     # archive
     p_archive = subparsers.add_parser("archive", help="Archive task")
     p_archive.add_argument("name", help="Task directory or name")
@@ -488,6 +493,7 @@ def main() -> int:
         "set-branch": cmd_set_branch,
         "set-base-branch": cmd_set_base_branch,
         "set-scope": cmd_set_scope,
+        "set-check": cmd_set_check,
         "archive": cmd_archive,
         "add-subtask": cmd_add_subtask,
         "remove-subtask": cmd_remove_subtask,
