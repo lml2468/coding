@@ -1,6 +1,6 @@
 {
   "name": "@limenglin/coding-core",
-  "version": "0.6.7",
+  "version": "0.7.0",
   "description": "coding core SDK — task domain primitives consumed by the coding CLI and downstream Node services",
   "type": "module",
   "main": "./dist/index.js",

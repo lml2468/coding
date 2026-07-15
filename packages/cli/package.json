@@ -1,6 +1,6 @@
 {
   "name": "@limenglin/coding",
-  "version": "0.6.7",
+  "version": "0.7.0",
   "description": "coding — an out-of-the-box engineering framework for AI coding (Claude Code); a fork of Trellis",
   "type": "module",
   "main": "./dist/index.js",
