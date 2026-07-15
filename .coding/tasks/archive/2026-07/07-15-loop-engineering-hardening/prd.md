@@ -4,6 +4,35 @@
 cross-child acceptance criteria. It has no direct implementation work; each
 deliverable is implemented, checked, and archived in its own child task.
 
+## FINAL RESULT (integration verified 2026-07-15)
+
+All 4 children implemented, checked, committed, archived. Parent cross-child AC
+suite: **9/9 pass** (run end-to-end against the live hooks). The full loop is
+verified live: a commit while `in_progress` with `check_status != pass` is
+DENIED by the gate; after `set-check pass` it is ALLOWED — the soft "check
+before commit" breadcrumb is now a hard gate.
+
+Children (all archived under `archive/2026-07/`):
+- `spike-loop-keystone` — verified PreToolUse deny contract + `task.py set-check`/`meta.loop`.
+- `loop-core-gate` — `inject-commit-gate.py` hard commit gate.
+- `finish-path` — activated the dead `[finish]` path (F3), tests in verification (F4), executable AC (F5).
+- `cleanup-warn-refs` — context-drop warning via `additionalContext` (F6), dangling refs removed (F7).
+
+Regression found + fixed during finish-path: the commit-gate (loop-core-gate)
+added `inject-commit-gate.py` to shared-hooks but not to
+`shared-hooks.test.ts` `ALL_HOOK_FILES` — a 5th registration surface the spec's
+"register in 4 places" note missed. Fixed; that spec note should be updated to
+name the test table too (follow-up).
+
+Out-of-scope pre-existing failures (NOT introduced here, confirmed against the
+initial commit): `regression.test.ts` had 25 failures at base, 15 now (this
+work net-fixed 10 by completing workflow-state content); `task-archive`
+integration test 1 failure at base. Both are fork-inherited tech debt worth a
+separate task.
+
+F8 (completed-state machine) was deferred by decision (see Structure section).
+
+
 ## Source problem
 
 An audit of Coding's runtime (see the analysis that produced this task) found
