@@ -164,7 +164,8 @@ def _default_prd_content(title: str, description: str | None = None) -> str:
 
 ## Acceptance Criteria
 
-- [ ] TBD
+- [ ] AC1 (executable): <command or test that must pass> → <expected result>
+- [ ] AC2: <verifiable outcome>
 
 ## Notes
 

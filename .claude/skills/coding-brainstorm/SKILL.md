@@ -120,7 +120,9 @@ For each component of the current plan:
 - goal and user value
 - confirmed facts
 - requirements
-- acceptance criteria
+- acceptance criteria — write each one to be verifiable; include at least one
+  executable check (a command / test / grep with expected output) when the task
+  has a runtime surface
 - out of scope
 - open questions that still block planning
 

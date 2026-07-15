@@ -32,7 +32,7 @@ Shows the Phase Index (Plan / Execute / Finish) with routing + skill mapping.
 - `status=in_progress` + implementation done, not yet checked → **2.2**
 - `status=in_progress` + `meta.loop.check_status=fail` → back to **2.1** (re-implement to fix the check findings)
 - `status=in_progress` + `meta.loop.iteration_count >= 3` → load `coding-break-loop` (repeated failures — analyze root cause instead of looping)
-- `status=in_progress` + `meta.loop.check_status=pass` (check passed) → **3.3** (spec update) → **3.4** (commit)
+- `status=in_progress` + `meta.loop.check_status=pass` (check passed) → **3.3** (spec update) → **3.4** (commit). Before 3.3, dispatch the final `coding-check` with `[finish]` prefixed in the dispatch prompt (full test suite + per-AC pass/fail table).
 - `status=completed` (rare; usually archived immediately) → archive flow
 
 > `meta.loop` lives in the active task's `task.json` (written by `task.py set-check`). Absent `meta.loop` reads as `check_status=unknown`, `iteration_count=0` — treat as "not yet checked" (route to 2.2).

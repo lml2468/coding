@@ -96,6 +96,21 @@ def get_current_task(repo_root: str, input_data: dict) -> str | None:
     return active.task_path
 
 
+def _check_status_is_pass(repo_root: str, task_dir: str) -> bool:
+    """Return True when the task's loop check_status is "pass".
+
+    Reads <repo_root>/<task_dir>/task.json and inspects
+    meta.loop.check_status. Any missing file / parse error / absent field
+    fails toward False (regular check), so a missing spike is safe.
+    """
+    try:
+        task_json = Path(repo_root) / task_dir / FILE_TASK_JSON
+        data = json.loads(task_json.read_text(encoding="utf-8"))
+        return data.get("meta", {}).get("loop", {}).get("check_status") == "pass"
+    except Exception:
+        return False
+
+
 def read_file_content(base_path: str, file_path: str) -> str | None:
     """Read file content, return None if file doesn't exist"""
     full_path = os.path.join(base_path, file_path)
@@ -374,7 +389,7 @@ All check specs and dev specs you need:
 1. **Get changes** - Run `git diff --name-only` and `git diff` to get code changes
 2. **Check against specs** - Check item by item against specs above
 3. **Self-fix** - Fix issues directly, don't just report
-4. **Run verification** - Run project's lint and typecheck commands
+4. **Run verification** - Run project's lint, typecheck, and project tests
 
 ## Important Constraints
 
@@ -412,8 +427,11 @@ Finish checklist and requirements:
    - If new pattern/convention found: read target spec file → update it → update index.md if needed
    - If infra/cross-layer change: follow the 7-section mandatory template from update-spec.md
    - If pure code fix with no new patterns: skip this step
-4. **Run final checks** - Execute lint and typecheck
-5. **Confirm ready** - Ensure code is ready for PR
+4. **Run final checks** - Execute lint, typecheck, and project tests
+5. **Verify acceptance criteria** - For each acceptance criterion in prd.md, run
+   it if it is executable (a command / test / grep with expected output) and
+   render a table `| AC | check | result |`; mark non-executable criteria "manual"
+6. **Confirm ready** - Ensure code is ready for PR
 
 ## Important Constraints
 
@@ -629,6 +647,11 @@ def main():
 
     # Check for [finish] marker in prompt (check agent with finish context)
     is_finish_phase = "[finish]" in original_prompt.lower()
+    # Belt-and-suspenders: once the loop is green (check_status=pass), the next
+    # check dispatch IS the final pass, so load finish context even without the
+    # explicit marker. The [finish] marker remains an explicit override.
+    if not is_finish_phase and subagent_type == AGENT_CHECK and task_dir:
+        is_finish_phase = _check_status_is_pass(repo_root, task_dir)
 
     # Get context and build prompt based on subagent type
     if subagent_type == AGENT_IMPLEMENT:

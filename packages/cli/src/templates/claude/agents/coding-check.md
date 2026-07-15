@@ -79,7 +79,17 @@ After finding issues:
 
 ### Step 4: Run Verification
 
-Run project's lint and typecheck commands to verify changes.
+Run project's lint and typecheck commands, then the project test command, to
+verify changes.
+
+Discover the test command (do NOT invent one):
+- `package.json` `scripts.test` → run it (e.g. `pnpm test` / `npm test`)
+- else `pytest` / `pyproject.toml` present → `pytest`
+- else `Makefile` with a `test` target → `make test`
+- else explicitly state "no test command found — tests skipped"
+
+Full test suites can be slow; mid-loop you may scope to the affected package
+(your judgment). The final finish pass runs the full suite.
 
 If failed, fix issues and re-run.
 
@@ -87,7 +97,7 @@ If failed, fix issues and re-run.
 
 After verification, record the outcome so the loop can route and gate correctly:
 
-- If lint and typecheck both pass (and any issues found were fixed):
+- If lint, typecheck, and tests all pass (and any issues found were fixed):
   `python3 ./.coding/scripts/task.py set-check pass`
 - Otherwise (unfixable failures remain):
   `python3 ./.coding/scripts/task.py set-check fail`

@@ -75,7 +75,8 @@ Read the task's prd.md, design.md if present, and implement.md if present:
 
 ### 4. Verify
 
-Run project's lint and typecheck commands to verify changes.
+Run project's lint and typecheck commands, and the project test command, to
+verify changes as a self-check.
 
 ---
 
