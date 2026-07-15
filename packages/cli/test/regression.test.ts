@@ -1073,6 +1073,8 @@ describe("regression: current-task path normalization", () => {
     "DROID_TRANSCRIPT_PATH",
     "QODER_TRANSCRIPT_PATH",
     "CODEBUDDY_TRANSCRIPT_PATH",
+    "CODING_HOOKS",
+    "CODING_DISABLE_HOOKS",
   ] as const;
 
   function sessionEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {

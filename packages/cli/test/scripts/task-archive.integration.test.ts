@@ -52,6 +52,10 @@ function setupRepo(tmp: string): void {
   // Local commit identity so commit() works in CI without global config.
   git(tmp, "config", "user.email", "test@example.com");
   git(tmp, "config", "user.name", "Test");
+  // Pin hooks to the repo-local .git/hooks dir so a developer's global
+  // core.hooksPath cannot override (and thus silently skip) the repo-local
+  // pre-commit hook that the auto-commit-failure test installs.
+  git(tmp, "config", "core.hooksPath", ".git/hooks");
 
   // Stamp the real templates into the test repo.
   const scriptsDest = path.join(tmp, ".coding", "scripts");

@@ -92,6 +92,16 @@ action proceed. A GATE hook (deny) is the deliberate exception and denies only
 when all its conditions are certain. Honor the kill switches at the top of
 `main`: `CODING_HOOKS=0` and `CODING_DISABLE_HOOKS=1` → exit 0 / allow.
 
+> **Testing gotcha:** because the kill switches are read from the environment,
+> a test harness that spawns hooks MUST scrub `CODING_HOOKS` /
+> `CODING_DISABLE_HOOKS` from the ambient env (see `packages/cli/test/setup.ts`
+> and `SESSION_ENV_KEYS`). Otherwise a developer running the suite with
+> `CODING_HOOKS=0` exported (or prefixing the repro command with it) leaks the
+> kill switch into every hook subprocess, which then short-circuits to empty
+> stdout — making unrelated tests fail with `Unexpected end of JSON input` /
+> `expected '' to contain ...`. Tests that need the gate on set it explicitly
+> per-invocation (that override still wins over the ambient scrub).
+
 ---
 
 ## Where a new shared hook must be registered (all 5)
