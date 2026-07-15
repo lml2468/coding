@@ -72,3 +72,36 @@ Implemented inject-commit-gate.py PreToolUse(Bash) hook: denies git commit when 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 3: cleanup-warn-refs: context-drop warning + dangling refs
+
+**Date**: 2026-07-15
+**Task**: cleanup-warn-refs: context-drop warning + dangling refs
+**Branch**: `main`
+
+### Summary
+
+F6: inject-subagent-context.py now warns via additionalContext (model-visible, non-blocking) when implement/check dispatched with no resolvable active task, instead of silent exit. F7: removed dangling /coding:start from joiner PRD, generalized hardcoded mcp__exa tool names. Check found+corrected a bad AC fixture (cwd:/tmp early-exits at find_repo_root before F6 branch); re-verified with proper fixture. Dual-written, all ACs pass.
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `335d450` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
