@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 3
+- **Total Sessions**: 4
 - **Last Active**: 2026-07-15
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~107 | Active |
+| `journal-1.md` | ~141 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 4 | 2026-07-15 | finish-path: activate finish prompt, tests in verify, executable AC | `9346c1a`, `a1441a1` | `main` |
 | 3 | 2026-07-15 | cleanup-warn-refs: context-drop warning + dangling refs | `335d450` | `main` |
 | 2 | 2026-07-15 | loop-core-gate: hard commit gate implemented | `da6d2f4` | `main` |
 | 1 | 2026-07-15 | Loop-engineering hardening: spike + set-check keystone | `1418263`, `f4cd1ec` | `main` |

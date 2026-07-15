@@ -105,3 +105,37 @@ F6: inject-subagent-context.py now warns via additionalContext (model-visible, n
 ### Next Steps
 
 - None - task complete
+
+
+## Session 4: finish-path: activate finish prompt, tests in verify, executable AC
+
+**Date**: 2026-07-15
+**Task**: finish-path: activate finish prompt, tests in verify, executable AC
+**Branch**: `main`
+
+### Summary
+
+F3: activated dead [finish] path via meta.loop.check_status=pass second trigger + workflow/continue [finish] dispatch. F4: check/implement run tests, set-check pass requires tests. F5: brainstorm+prd nudge executable AC, finish renders per-AC table. Check caught+fixed a regression I introduced in loop-core-gate (inject-commit-gate.py missing from shared-hooks.test.ts ALL_HOOK_FILES). Confirmed regression.test.ts 15 fails are fork-inherited tech debt (base had 25; my work net-fixed 10), task-archive 1 fail pre-existing — both out of scope.
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9346c1a` | (see git log) |
+| `a1441a1` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
