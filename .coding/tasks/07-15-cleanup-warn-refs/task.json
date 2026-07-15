@@ -3,7 +3,7 @@
   "name": "cleanup-warn-refs",
   "title": "Cleanup: concurrent-context warning + dangling refs",
   "description": "stderr warn on unresolved sub-agent task; remove /coding:start and hardcoded exa refs.",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -22,5 +22,11 @@
   "parent": "07-15-loop-engineering-hardening",
   "relatedFiles": [],
   "notes": "",
-  "meta": {}
+  "meta": {
+    "loop": {
+      "check_status": "pass",
+      "iteration_count": 0,
+      "last_check_at": "2026-07-15T12:55:48Z"
+    }
+  }
 }

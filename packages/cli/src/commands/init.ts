@@ -668,8 +668,6 @@ code every session.
 - **Core slash commands**:
   - \`/coding:continue\` — resume the current session's active task
   - \`/coding:finish-work\` — wrap up a finished task
-  - \`/coding:start\` — session boot from scratch (not needed here; the
-    SessionStart hook does its job automatically)
 
 ### 2. Runtime mechanics (explain when they ask "how does it know what to do")
 
@@ -792,9 +790,7 @@ async function handleReinit(
     if (options.yes) {
       console.log(chalk.gray(`Already initialized with: ${configuredNames}`));
       console.log(
-        chalk.gray(
-          "Use --claude or -u <name> to add the platform/developer.",
-        ),
+        chalk.gray("Use --claude or -u <name> to add the platform/developer."),
       );
       return true;
     }

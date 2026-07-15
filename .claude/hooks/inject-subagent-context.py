@@ -465,7 +465,7 @@ To get structured package info, run: `python3 ./{DIR_WORKFLOW}/scripts/get_conte
 
 - Spec files: `{spec_path}/**/*.md`
 - Code search: Use Glob and Grep tools
-- Tech solutions: Use mcp__exa__web_search_exa or mcp__exa__get_code_context_exa"""
+- Tech solutions: Use a web-search MCP tool if one is configured in your environment"""
 
     context_parts.append(project_structure)
 
@@ -510,8 +510,7 @@ You are a documenter, not a reviewer.
 | Glob | Search by filename pattern |
 | Grep | Search by content |
 | Read | Read file content |
-| mcp__exa__web_search_exa | External web search |
-| mcp__exa__get_code_context_exa | External code/doc search |
+| (web-search MCP, if configured) | External web / code search |
 
 ## Strict Boundaries
 
@@ -566,6 +565,24 @@ def _parse_hook_input(input_data: dict) -> tuple[str, str, dict]:
     return "", "", tool_input
 
 
+def _warn_and_allow(message: str) -> None:
+    """Surface a warning to the model WITHOUT blocking the dispatch, then exit 0.
+
+    In Claude Code a PreToolUse hook's stderr is only fed to the model on exit 2
+    (which blocks the tool). To make a message visible on exit 0 we use
+    hookSpecificOutput.additionalContext. We pair it with permissionDecision
+    "allow" (docs-confirmed) rather than context-only (uncertain); this
+    affirmatively approves the Task dispatch, which is acceptable for sub-agents.
+    """
+    print(json.dumps({"hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "allow",
+        "permissionDecisionReason": "coding: dispatching sub-agent without injected task context",
+        "additionalContext": message,
+    }}))
+    sys.exit(0)
+
+
 def main():
     if os.environ.get("CODING_HOOKS") == "0" or os.environ.get("CODING_DISABLE_HOOKS") == "1":
         sys.exit(0)
@@ -593,11 +610,22 @@ def main():
     # implement/check need task directory
     if subagent_type in AGENTS_REQUIRE_TASK:
         if not task_dir:
-            sys.exit(0)
+            # Probe decision: use allow+additionalContext (safer; docs-confirmed).
+            _warn_and_allow(
+                f"coding: no active task resolved for `{subagent_type}` — running "
+                "WITHOUT injected prd/spec. Read the `Active task:` first line of "
+                "your prompt and load that task's jsonl + prd/design/implement "
+                "yourself. If unexpected, check for multiple open windows "
+                "(multi-session active-task resolution is skipped for safety)."
+            )
         # Check if task directory exists
         task_dir_full = os.path.join(repo_root, task_dir)
         if not os.path.exists(task_dir_full):
-            sys.exit(0)
+            _warn_and_allow(
+                f"coding: active task path `{task_dir}` does not exist — running "
+                "WITHOUT injected context; the pointer may be stale (run "
+                "`task.py finish` or re-`start`)."
+            )
 
     # Check for [finish] marker in prompt (check agent with finish context)
     is_finish_phase = "[finish]" in original_prompt.lower()
