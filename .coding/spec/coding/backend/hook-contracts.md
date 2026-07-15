@@ -94,10 +94,10 @@ when all its conditions are certain. Honor the kill switches at the top of
 
 ---
 
-## Where a new shared hook must be registered (all 4)
+## Where a new shared hook must be registered (all 5)
 
-Adding a hook that ships to users touches four surfaces — miss one and it
-installs but never fires, or fires only in this repo:
+Adding a hook that ships to users touches five surfaces — miss one and it
+installs but never fires, fires only in this repo, or reddens the test suite:
 
 1. `packages/cli/src/templates/shared-hooks/<name>.py` (source) + live
    `.claude/hooks/<name>.py`.
@@ -108,3 +108,10 @@ installs but never fires, or fires only in this repo:
    `{{PYTHON_CMD}} .claude/hooks/<name>.py` (template uses the placeholder; the
    live copy uses `python3`). This `{{PYTHON_CMD}}` / `{{CLI_FLAG}}` divergence
    is the EXPECTED diff between a live file and its template — not a parity bug.
+5. `packages/cli/test/templates/shared-hooks.test.ts`: add to `ALL_HOOK_FILES`
+   AND the per-platform registration assertion (e.g. the "claude registers ..."
+   test). The suite asserts the shared-hooks/ directory contains ONLY enumerated
+   files, so a new hook without this reddens `pnpm test`. (This surface was
+   missed once — the commit-gate hook shipped green on targeted ACs but broke
+   the full suite until the table was updated.)
+
