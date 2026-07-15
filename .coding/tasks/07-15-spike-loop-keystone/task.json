@@ -1,0 +1,32 @@
+{
+  "id": "spike-loop-keystone",
+  "name": "spike-loop-keystone",
+  "title": "Spike: verify commit-gate mechanism + land loop-state keystone",
+  "description": "Verify PreToolUse Bash deny reliably blocks git commit; implement meta.loop + task.py set-check as the keystone. Gate for the rest.",
+  "status": "in_progress",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "lml2468",
+  "assignee": "lml2468",
+  "createdAt": "2026-07-15",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "07-15-loop-engineering-hardening",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "loop": {
+      "check_status": "pass",
+      "iteration_count": 0,
+      "last_check_at": "2026-07-15T12:24:07Z"
+    }
+  }
+}

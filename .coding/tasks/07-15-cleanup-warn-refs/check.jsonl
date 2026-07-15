@@ -1,0 +1,2 @@
+{"file": ".coding/spec/coding/backend/index.md", "reason": "CLI/scripts/hooks backend conventions + quality gates"}
+{"file": ".coding/tasks/07-15-cleanup-warn-refs/design.md", "reason": "verify warning, greps clean, no regression"}

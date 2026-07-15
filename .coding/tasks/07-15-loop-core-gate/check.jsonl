@@ -1,0 +1,2 @@
+{"file": ".coding/spec/coding/backend/index.md", "reason": "CLI/scripts/hooks backend conventions + quality gates"}
+{"file": ".coding/tasks/07-15-loop-core-gate/design.md", "reason": "verify fail-open + all registration surfaces"}
