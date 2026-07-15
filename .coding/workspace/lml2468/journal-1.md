@@ -172,3 +172,36 @@ Completed the full loop-engineering-hardening parent: all 4 children (spike-loop
 ### Next Steps
 
 - None - task complete
+
+
+## Session 6: Fixed all fork-inherited test debt (16 failures → 0)
+
+**Date**: 2026-07-15
+**Task**: Fixed all fork-inherited test debt (16 failures → 0)
+**Branch**: `main`
+
+### Summary
+
+Diagnosed via research sub-agent: all 16 fork-inherited failures were test/env issues, ZERO product bugs. Root causes: (1) setup.ts didn't scrub CODING_HOOKS/CODING_DISABLE_HOOKS so ambient kill-switch leaked into hook subprocesses → empty stdout (15 tests); (2) global core.hooksPath made git ignore the repo-local pre-commit the archive test installs (1 test). Also disproved the stdin-timeout hypothesis (my repro command's own CODING_HOOKS=0 prefix was causing failures). Test-only fixes; full suite 800/800. Lesson sunk into hook-contracts.md.
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `34fe0be` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

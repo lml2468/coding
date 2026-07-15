@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 5
+- **Total Sessions**: 6
 - **Last Active**: 2026-07-15
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~174 | Active |
+| `journal-1.md` | ~207 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 6 | 2026-07-15 | Fixed all fork-inherited test debt (16 failures → 0) | `34fe0be` | `main` |
 | 5 | 2026-07-15 | loop-engineering-hardening COMPLETE: parent integration 9/9 | `158f2b2` | `main` |
 | 4 | 2026-07-15 | finish-path: activate finish prompt, tests in verify, executable AC | `9346c1a`, `a1441a1` | `main` |
 | 3 | 2026-07-15 | cleanup-warn-refs: context-drop warning + dangling refs | `335d450` | `main` |
