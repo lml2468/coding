@@ -3,7 +3,7 @@
   "name": "loop-core-gate",
   "title": "Loop core: commit gate reads check state",
   "description": "PreToolUse Bash hook denies commit when in_progress and check not passed; consumes set-check state from the spike.",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -22,5 +22,11 @@
   "parent": "07-15-loop-engineering-hardening",
   "relatedFiles": [],
   "notes": "",
-  "meta": {}
+  "meta": {
+    "loop": {
+      "check_status": "pass",
+      "iteration_count": 0,
+      "last_check_at": "2026-07-15T12:45:36Z"
+    }
+  }
 }

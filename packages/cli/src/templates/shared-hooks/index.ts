@@ -27,7 +27,8 @@ export interface HookScript {
 export type SharedHookName =
   | "session-start.py"
   | "inject-workflow-state.py"
-  | "inject-subagent-context.py";
+  | "inject-subagent-context.py"
+  | "inject-commit-gate.py";
 
 export type SharedHookPlatform = "claude";
 
@@ -36,10 +37,11 @@ export type SharedHookPlatform = "claude";
  * for shared-hook distribution — both `writeSharedHooks` (runtime install)
  * and `collectSharedHooks` (`coding update` diff) read from this table.
  *
- * Claude Code registers all three shared hooks:
+ * Claude Code registers all four shared hooks:
  * - `session-start.py` — SessionStart overview.
  * - `inject-workflow-state.py` — per-turn UserPromptSubmit breadcrumb.
  * - `inject-subagent-context.py` — PreToolUse sub-agent prompt injection.
+ * - `inject-commit-gate.py` — PreToolUse Bash commit gate.
  *
  * Claude Code `statusLine` is intentionally not installed by default. Users
  * can add their own statusLine command in `.claude/settings.json`, or opt in
@@ -54,6 +56,7 @@ export const SHARED_HOOKS_BY_PLATFORM: Record<
     "session-start.py",
     "inject-workflow-state.py",
     "inject-subagent-context.py",
+    "inject-commit-gate.py",
   ],
 };
 
