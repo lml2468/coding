@@ -1,0 +1,4 @@
+{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .coding/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".coding/spec/coding/backend/index.md", "reason": "meta.loop 契约 + hook 索引，本 child 直接操作 loop 状态机"}
+{"file": ".coding/spec/coding/backend/hook-contracts.md", "reason": "commit-gate #2 依赖 PreToolUse deny/allow 契约"}
+{"file": ".coding/spec/guides/code-reuse-thinking-guide.md", "reason": "改 check 技能/task_store/workflow 前先查现有实现，避免重复"}
