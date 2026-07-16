@@ -17,10 +17,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from common.io import write_json
+
 DIR_WORKFLOW = ".coding"
 DIR_TASKS = "tasks"
 DIR_RUNTIME = ".runtime"
 DIR_SESSIONS = "sessions"
+
+# Session pointer TTL: files whose last_seen_at is older than this are pruned so
+# leaked zombie pointers (crash/close/--continue) can't accumulate and
+# permanently disable the single-session fallback.
+SESSION_TTL_DAYS = 7
+# Throttle read-time last_seen_at refresh so a resolve on every statusline/hook
+# tick doesn't rewrite the pointer each time.
+_SESSION_REFRESH_SECONDS = 60
 
 _SESSION_KEYS = ("session_id", "sessionId", "sessionID")
 _CONVERSATION_KEYS = ("conversation_id", "conversationId", "conversationID")
@@ -262,13 +272,12 @@ def _read_json(path: Path) -> dict[str, Any] | None:
 def _write_json(path: Path, data: dict[str, Any]) -> bool:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            json.dumps(data, indent=2, ensure_ascii=False) + "\n",
-            encoding="utf-8",
-        )
-        return True
     except OSError:
         return False
+    # Delegate to common.io.write_json for an atomic temp+os.replace write, so a
+    # crash/Ctrl-C mid-write can't truncate a session pointer into unparsable
+    # JSON (which _read_json swallows, silently dropping the active task).
+    return write_json(path, data)
 
 
 def _canonical_task_ref(task_path: str, repo_root: Path) -> str | None:
@@ -317,10 +326,16 @@ def resolve_active_task(
     """
     context_key = resolve_context_key(platform_input, platform)
     if context_key:
-        context = _read_json(_context_path(repo_root, context_key)) or {}
+        # Lazy TTL sweep of leaked sibling pointers (never the current one).
+        prune_sessions(repo_root, exclude_key=context_key)
+        context_path = _context_path(repo_root, context_key)
+        context = _read_json(context_path) or {}
         task_ref = _string_value(context.get("current_task"))
         active = _active_from_ref(task_ref, repo_root, "session", context_key)
         if active:
+            # Keep an active (even read-only) session fresh so the TTL sweep
+            # never reaps a pointer that is still in use.
+            _refresh_last_seen(context_path, context)
             return active
 
     fallback = _resolve_single_session_fallback(repo_root)
@@ -357,6 +372,74 @@ def _resolve_single_session_fallback(repo_root: Path) -> ActiveTask | None:
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _parse_iso(value: str | None) -> datetime | None:
+    """Parse an ISO-8601 timestamp (tolerating a trailing 'Z') to aware UTC.
+
+    Returns None for missing or unparsable input so callers can treat it as
+    "keep" — never reaping a pointer just because its timestamp is malformed.
+    """
+    if not value:
+        return None
+    text = value.strip()
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _refresh_last_seen(context_path: Path, context: dict[str, Any]) -> None:
+    """Throttled refresh of a session pointer's last_seen_at.
+
+    resolve is read-only in normal use, so without this the TTL sweep would
+    eventually reap a still-active session. Only rewrites when last_seen_at is
+    missing or older than the throttle window, and uses the atomic writer.
+    """
+    last_seen = _parse_iso(_string_value(context.get("last_seen_at")))
+    if last_seen is not None:
+        age = (datetime.now(timezone.utc) - last_seen).total_seconds()
+        if age < _SESSION_REFRESH_SECONDS:
+            return
+    updated = dict(context)
+    updated["last_seen_at"] = _utc_now()
+    _write_json(context_path, updated)
+
+
+def prune_sessions(repo_root: Path, *, exclude_key: str | None = None) -> int:
+    """Delete session pointer files whose last_seen_at is older than the TTL.
+
+    Three anti-clobber guards (all required):
+      1. the `exclude_key` file (the current session) is never touched;
+      2. a missing/unparsable last_seen_at is kept (back-compat with pointers
+         written before the field existed);
+      3. only files aged strictly beyond SESSION_TTL_DAYS are removed.
+    Unlink failures are treated as no-ops. Returns the number removed.
+    """
+    sessions_dir = _runtime_sessions_dir(repo_root)
+    if not sessions_dir.is_dir():
+        return 0
+
+    ttl_seconds = SESSION_TTL_DAYS * 86400
+    now = datetime.now(timezone.utc)
+    removed = 0
+    for session_path in sessions_dir.glob("*.json"):
+        if exclude_key and session_path.stem == exclude_key:
+            continue
+        context = _read_json(session_path) or {}
+        last_seen = _parse_iso(_string_value(context.get("last_seen_at")))
+        if last_seen is None:
+            continue
+        if (now - last_seen).total_seconds() <= ttl_seconds:
+            continue
+        if _remove_file(session_path):
+            removed += 1
+    return removed
 
 
 def _context_metadata(
@@ -421,7 +504,12 @@ def clear_active_task(
         return ActiveTask(None, "none")
 
     previous = resolve_active_task(repo_root, platform_input, platform)
-    context_path = _context_path(repo_root, context_key)
+    # `previous` may come from the single-session fallback, whose real file
+    # stem differs from context_key. Delete the file we actually resolved, not
+    # the current-key file (which may not exist) — otherwise finish leaves the
+    # pointer alive while reporting "✓ Cleared".
+    target_key = previous.context_key or context_key
+    context_path = _context_path(repo_root, target_key)
     if context_path.is_file():
         _remove_file(context_path)
     return previous

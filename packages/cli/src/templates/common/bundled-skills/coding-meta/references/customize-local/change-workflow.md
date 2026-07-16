@@ -16,7 +16,7 @@ When the user wants to change Coding phases, next-action hints, whether to creat
 | Change whether to create a task when there is no task | `[workflow-state:no_task]` state block. |
 | Change the next step during planning | Phase 1 and `[workflow-state:planning]`. |
 | Change whether an agent is required during in_progress | Phase 2 and `[workflow-state:in_progress]`. |
-| Change wrap-up after completion | Phase 3 and `[workflow-state:completed]`. |
+| Change wrap-up after completion | Phase 3 (Finish steps). |
 | Change which skill a user intent triggers | `Skill Routing` table. |
 
 ## Modification Steps

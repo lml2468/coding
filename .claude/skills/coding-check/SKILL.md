@@ -96,3 +96,20 @@ Skip this step if your change is confined to a single layer.
 ## Step 6: Report and Fix
 
 Report violations found and fix them directly. Re-run project checks after fixes.
+
+## Step 7: Record Loop State
+
+After verification, record the outcome so the loop can route and gate correctly:
+
+- If lint, typecheck, and tests all pass (and any issues found were fixed):
+  `python3 ./.coding/scripts/task.py set-check pass`
+- Otherwise (unfixable failures remain):
+  `python3 ./.coding/scripts/task.py set-check fail`
+
+This writes `meta.loop.check_status` on the active task. `pass` lets the commit
+gate allow a commit and routes to finish; `fail` increments the iteration count
+so `/coding:continue` routes back to implement (or to `coding-break-loop` after
+repeated failures).
+
+> If you are already running as the `coding-check` agent, this step is covered
+> by the agent's own loop-state recording — do not run it twice.

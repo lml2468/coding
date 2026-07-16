@@ -311,13 +311,6 @@ def _get_task_status(coding_dir: Path, input_data: dict) -> str:
         present.append("research/")
     present_line = ", ".join(present) if present else "(none)"
 
-    if task_status == "completed":
-        return (
-            f"Status: COMPLETED\nTask: {task_title}\n"
-            f"Present: {present_line}\n"
-            "Next-Action: Run `/coding:finish-work`. If the working tree is dirty, return to Phase 3.4 first."
-        )
-
     has_prd = (task_dir / "prd.md").is_file()
     has_design = (task_dir / "design.md").is_file()
     has_implement_plan = (task_dir / "implement.md").is_file()

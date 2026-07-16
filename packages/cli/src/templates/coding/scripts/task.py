@@ -38,6 +38,7 @@ from common.paths import (
 )
 from common.active_task import (
     clear_active_task,
+    prune_sessions,
     resolve_active_task,
     resolve_context_key,
     set_active_task,
@@ -92,6 +93,15 @@ def cmd_start(args: argparse.Namespace) -> int:
         task_dir = str(full_path)
 
     task_json_path = full_path / FILE_TASK_JSON
+
+    # Warn (do not block) if an existing pointer is stale before we overwrite it.
+    existing = resolve_active_task(repo_root)
+    if existing.stale:
+        print(colored(
+            "ℹ Previous active-task pointer was stale (task dir missing); "
+            "overwriting it now.",
+            Colors.YELLOW,
+        ))
 
     if not resolve_context_key():
         # Degraded mode: no session identity available.
@@ -159,6 +169,14 @@ def cmd_finish(args: argparse.Namespace) -> int:
 
     if task_json_path.is_file():
         run_task_hooks("after_finish", task_json_path, repo_root)
+    return 0
+
+
+def cmd_prune_sessions(args: argparse.Namespace) -> int:
+    """Remove aged session pointer files (TTL sweep)."""
+    repo_root = get_repo_root()
+    removed = prune_sessions(repo_root, exclude_key=resolve_context_key())
+    print(colored(f"✓ Pruned {removed} aged session pointer(s)", Colors.GREEN))
     return 0
 
 
@@ -315,6 +333,7 @@ Usage:
   python3 task.py start <dir>                        Set active task
   python3 task.py current [--source]                 Show active task
   python3 task.py finish                             Clear active task
+  python3 task.py prune-sessions                     Remove aged session pointers (TTL sweep)
   python3 task.py set-branch <dir> <branch>          Set git branch
   python3 task.py set-base-branch <dir> <branch>     Set PR target branch
   python3 task.py set-scope <dir> <scope>            Set scope for PR title
@@ -433,6 +452,11 @@ def main() -> int:
     # finish
     subparsers.add_parser("finish", help="Clear active task")
 
+    # prune-sessions
+    subparsers.add_parser(
+        "prune-sessions", help="Remove aged session pointer files (TTL sweep)"
+    )
+
     # set-branch
     p_branch = subparsers.add_parser("set-branch", help="Set git branch")
     p_branch.add_argument("dir", help="Task directory")
@@ -490,6 +514,7 @@ def main() -> int:
         "start": cmd_start,
         "current": cmd_current,
         "finish": cmd_finish,
+        "prune-sessions": cmd_prune_sessions,
         "set-branch": cmd_set_branch,
         "set-base-branch": cmd_set_base_branch,
         "set-scope": cmd_set_scope,
