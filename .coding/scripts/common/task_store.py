@@ -817,6 +817,21 @@ def cmd_set_check(args: argparse.Namespace) -> int:
         )
         return 1
 
+    if active.stale:
+        print(
+            colored(
+                "Error: active task pointer is stale (task dir missing).",
+                Colors.RED,
+            ),
+            file=sys.stderr,
+        )
+        print(
+            "Run `python3 ./.coding/scripts/task.py finish` to clear it, "
+            "then re-start the task.",
+            file=sys.stderr,
+        )
+        return 1
+
     task_json_path = repo_root / active.task_path / FILE_TASK_JSON
     data = read_json(task_json_path)
     if not data:

@@ -26,7 +26,7 @@ If the user feels the AI does not know the current task in a new session, first 
 
 ## workflow-state
 
-workflow-state is a lightweight hint injected around each user turn. Based on current task status, it selects a block from `.coding/workflow.md`, such as `no_task`, `planning`, `in_progress`, or `completed`.
+workflow-state is a lightweight hint injected around each user turn. Based on current task status, it selects a block from `.coding/workflow.md`, such as `no_task`, `planning`, or `in_progress`.
 
 If the user wants to change "what the AI should do next in a given state," edit the corresponding state block in `.coding/workflow.md` first.
 

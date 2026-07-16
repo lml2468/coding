@@ -1590,6 +1590,193 @@ describe("regression: current-task path normalization", () => {
     expect(fs.existsSync(contextOther)).toBe(true);
   });
 
+  it("[session-lifecycle] finish clears the fallback-resolved pointer (#6)", () => {
+    // finish resolves the active task via the single-session fallback when the
+    // current context key has no file. The pointer it deletes must be the file
+    // it actually resolved (stem "only-session"), not the current-key file
+    // ("ghost", which doesn't exist) — otherwise the pointer survives while
+    // finish reports "✓ Cleared".
+    setupTaskRepo();
+    const taskScriptPath = path.join(tmpDir, ".coding", "scripts", "task.py");
+    writeSessionContext("only-session", ".coding/tasks/issue-106");
+    const pointerPath = path.join(
+      tmpDir,
+      ".coding",
+      ".runtime",
+      "sessions",
+      "only-session.json",
+    );
+    expect(fs.existsSync(pointerPath)).toBe(true);
+
+    const output = execSync(
+      `${pythonCmd} ${JSON.stringify(taskScriptPath)} finish`,
+      {
+        cwd: tmpDir,
+        encoding: "utf-8",
+        env: sessionEnv({ CODING_CONTEXT_ID: "ghost" }),
+      },
+    );
+
+    expect(output).toContain("Cleared current task");
+    expect(output).toContain(".coding/tasks/issue-106");
+    // The actually-resolved pointer file is gone (no false "cleared" report).
+    expect(fs.existsSync(pointerPath)).toBe(false);
+  });
+
+  it("[session-lifecycle] prune-sessions removes aged, keeps fresh + current (#5)", () => {
+    setupTaskRepo();
+    const taskScriptPath = path.join(tmpDir, ".coding", "scripts", "task.py");
+    const fresh = new Date(Date.now() - 60_000)
+      .toISOString()
+      .replace(/\.\d+Z$/, "Z");
+    const sessionsDir = path.join(".coding", ".runtime", "sessions");
+    // aged: last_seen well beyond the 7-day TTL → pruned.
+    writeProjectFile(
+      path.join(sessionsDir, "aged.json"),
+      JSON.stringify(
+        { current_task: ".coding/tasks/issue-106", last_seen_at: "2020-01-01T00:00:00Z" },
+        null,
+        2,
+      ),
+    );
+    // fresh: within TTL → kept.
+    writeProjectFile(
+      path.join(sessionsDir, "fresh.json"),
+      JSON.stringify(
+        { current_task: ".coding/tasks/issue-106", last_seen_at: fresh },
+        null,
+        2,
+      ),
+    );
+    // cur: current context — kept even though aged, via the exclude guard.
+    writeProjectFile(
+      path.join(sessionsDir, "cur.json"),
+      JSON.stringify(
+        { current_task: ".coding/tasks/issue-106", last_seen_at: "2020-01-01T00:00:00Z" },
+        null,
+        2,
+      ),
+    );
+
+    const output = execSync(
+      `${pythonCmd} ${JSON.stringify(taskScriptPath)} prune-sessions`,
+      {
+        cwd: tmpDir,
+        encoding: "utf-8",
+        env: sessionEnv({ CODING_CONTEXT_ID: "cur" }),
+      },
+    );
+
+    const abs = (name: string) => path.join(tmpDir, sessionsDir, name);
+    expect(fs.existsSync(abs("aged.json"))).toBe(false);
+    expect(fs.existsSync(abs("fresh.json"))).toBe(true);
+    expect(fs.existsSync(abs("cur.json"))).toBe(true);
+    expect(output).toContain("Pruned 1");
+  });
+
+  it("[session-lifecycle] prune-sessions keeps all pointers within TTL (#5 no false delete)", () => {
+    setupTaskRepo();
+    const taskScriptPath = path.join(tmpDir, ".coding", "scripts", "task.py");
+    const fresh = new Date(Date.now() - 60_000)
+      .toISOString()
+      .replace(/\.\d+Z$/, "Z");
+    const sessionsDir = path.join(".coding", ".runtime", "sessions");
+    writeProjectFile(
+      path.join(sessionsDir, "one.json"),
+      JSON.stringify(
+        { current_task: ".coding/tasks/issue-106", last_seen_at: fresh },
+        null,
+        2,
+      ),
+    );
+    writeProjectFile(
+      path.join(sessionsDir, "two.json"),
+      JSON.stringify(
+        { current_task: ".coding/tasks/issue-106", last_seen_at: fresh },
+        null,
+        2,
+      ),
+    );
+
+    const output = execSync(
+      `${pythonCmd} ${JSON.stringify(taskScriptPath)} prune-sessions`,
+      {
+        cwd: tmpDir,
+        encoding: "utf-8",
+        env: sessionEnv({ CODING_CONTEXT_ID: "other" }),
+      },
+    );
+
+    const abs = (name: string) => path.join(tmpDir, sessionsDir, name);
+    expect(fs.existsSync(abs("one.json"))).toBe(true);
+    expect(fs.existsSync(abs("two.json"))).toBe(true);
+    expect(output).toContain("Pruned 0");
+  });
+
+  it("[session-lifecycle] prune restores the single-session fallback (#5 AC2)", () => {
+    // Two pointers: an aged zombie (leaked by a crash) plus the real session.
+    // With ≥2 files the exactly-one fallback returns nothing. Pruning the
+    // zombie leaves exactly one file, so `current` (no session identity)
+    // recovers the active task via the single-session fallback.
+    setupTaskRepo();
+    const taskScriptPath = path.join(tmpDir, ".coding", "scripts", "task.py");
+    const fresh = new Date(Date.now() - 60_000)
+      .toISOString()
+      .replace(/\.\d+Z$/, "Z");
+    const sessionsDir = path.join(".coding", ".runtime", "sessions");
+    writeProjectFile(
+      path.join(sessionsDir, "zombie.json"),
+      JSON.stringify(
+        { current_task: ".coding/tasks/issue-106", last_seen_at: "2020-01-01T00:00:00Z" },
+        null,
+        2,
+      ),
+    );
+    writeProjectFile(
+      path.join(sessionsDir, "real.json"),
+      JSON.stringify(
+        { current_task: ".coding/tasks/issue-106", last_seen_at: fresh },
+        null,
+        2,
+      ),
+    );
+
+    // Before prune: two files → fallback refuses to guess.
+    let before = 1;
+    try {
+      execSync(`${pythonCmd} ${JSON.stringify(taskScriptPath)} current`, {
+        cwd: tmpDir,
+        encoding: "utf-8",
+        env: sessionEnv(),
+      });
+      before = 0;
+    } catch (err) {
+      before = (err as { status?: number }).status ?? 1;
+    }
+    expect(before).toBe(1);
+
+    execSync(`${pythonCmd} ${JSON.stringify(taskScriptPath)} prune-sessions`, {
+      cwd: tmpDir,
+      encoding: "utf-8",
+      env: sessionEnv(),
+    });
+
+    const abs = (name: string) => path.join(tmpDir, sessionsDir, name);
+    expect(fs.existsSync(abs("zombie.json"))).toBe(false);
+    expect(fs.existsSync(abs("real.json"))).toBe(true);
+
+    // After prune: exactly one file → fallback resolves the active task.
+    const currentOut = execSync(
+      `${pythonCmd} ${JSON.stringify(taskScriptPath)} current`,
+      {
+        cwd: tmpDir,
+        encoding: "utf-8",
+        env: sessionEnv(),
+      },
+    );
+    expect(currentOut.trim()).toBe(".coding/tasks/issue-106");
+  });
+
   it("[task-lifecycle] task.py create refuses an archived task dir-name collision", () => {
     writeCodingScripts();
     writeProjectFile(
@@ -1983,6 +2170,59 @@ describe("regression: current-task path normalization", () => {
     expect(output).toContain("Source: session:session-b");
     expect(output).toContain("State: stale");
     expect(output).not.toContain("issue-106");
+  });
+
+  it("[loop-feedback] set-check rejects a stale active-task pointer", () => {
+    setupTaskRepo();
+    writeProjectFile(
+      path.join(".coding", ".runtime", "sessions", "stale-session.json"),
+      JSON.stringify(
+        { current_task: ".coding/tasks/missing-task", platform: "claude" },
+        null,
+        2,
+      ),
+    );
+    const taskScriptPath = path.join(tmpDir, ".coding", "scripts", "task.py");
+
+    const result = spawnSync(
+      pythonCmd,
+      [taskScriptPath, "set-check", "fail"],
+      {
+        cwd: tmpDir,
+        encoding: "utf-8",
+        env: sessionEnv({ CODING_CONTEXT_ID: "stale-session" }),
+      },
+    );
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("stale");
+  });
+
+  it("[loop-feedback] set-check pass writes meta.loop.check_status", () => {
+    setupTaskRepo();
+    writeSessionContext("loop-session", ".coding/tasks/issue-106");
+    const taskScriptPath = path.join(tmpDir, ".coding", "scripts", "task.py");
+
+    const result = spawnSync(
+      pythonCmd,
+      [taskScriptPath, "set-check", "pass"],
+      {
+        cwd: tmpDir,
+        encoding: "utf-8",
+        env: sessionEnv({ CODING_CONTEXT_ID: "loop-session" }),
+      },
+    );
+
+    expect(result.status).toBe(0);
+
+    const taskJson = JSON.parse(
+      fs.readFileSync(
+        path.join(tmpDir, ".coding", "tasks", "issue-106", "task.json"),
+        "utf-8",
+      ),
+    );
+    expect(taskJson.meta.loop.check_status).toBe("pass");
+    expect(taskJson.meta.loop.iteration_count).toBe(0);
   });
 
   it("[session-current-task] Claude statusline uses session-scoped task when session_id is present", () => {
@@ -3053,11 +3293,13 @@ print(len(entries))
     );
   });
 
-  it("[workflow-state-r3-completed] template workflow.md [workflow-state:completed] block is present and well-formed", () => {
+  it("[loop-feedback] template workflow.md no longer contains the dead [workflow-state:completed] block", () => {
+    // Decision #3=B: the completed breadcrumb was DEAD in normal flow
+    // (cmd_archive writes status=completed and moves the dir in one call, so the
+    // resolver loses the pointer and the block never fires). It was removed to
+    // stop misleading customizers. Data-model completed writes/reads are kept.
     const wf = templateWorkflowMd();
-    expect(wf).toMatch(
-      /\[workflow-state:completed\]\s*\n[\s\S]+?\n\s*\[\/workflow-state:completed\]/,
-    );
+    expect(wf).not.toContain("workflow-state:completed");
   });
 
   it("[strip-breadcrumb] _strip_breadcrumb_tag_blocks only strips matched STATUS pairs (backreference parity with parser)", () => {
